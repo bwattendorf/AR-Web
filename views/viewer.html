@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AR Viewer - Panel Wiring</title>
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
   <style>
     body { margin: 0; overflow: hidden; }
     #loading-overlay {
@@ -28,31 +26,74 @@
       font-family: Arial, sans-serif; font-size: 0.9em; text-align: center;
       z-index: 100;
     }
+    #debug-log {
+      position: fixed; top: 10px; left: 10px; right: 10px;
+      background: rgba(0,0,0,0.7); color: #0f0; padding: 8px;
+      font-family: monospace; font-size: 0.7em; z-index: 200;
+      max-height: 120px; overflow-y: auto; border-radius: 6px;
+      display: none;
+    }
   </style>
 </head>
 <body>
   <div id="loading-overlay">
     <div class="spinner"></div>
-    <div>Initializing camera...<br>Point at the barcode marker to see annotations.</div>
+    <div id="loading-text">Loading panel data...</div>
   </div>
 
   <div id="info-bar">
     <span id="panel-name">Loading...</span> &mdash; Point camera at the barcode marker
   </div>
 
-  <a-scene
-    embedded
-    arjs="sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: false;"
-    renderer="logarithmicDepthBuffer: true; antialias: true;"
-    vr-mode-ui="enabled: false"
-  >
-    <a-marker id="ar-marker" type="barcode" value="0">
-      <!-- Annotations will be injected here by viewer.js -->
-    </a-marker>
+  <div id="debug-log"></div>
 
-    <a-entity camera></a-entity>
-  </a-scene>
+  <!-- Scene is built dynamically by viewer.js after loading panel data -->
+  <div id="scene-container"></div>
 
-  <script src="/public/js/viewer.js"></script>
+  <script>
+    // Load scripts in sequence, then init viewer
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Failed to load: ' + src));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function boot() {
+      const debugEl = document.getElementById('debug-log');
+      const loadingText = document.getElementById('loading-text');
+
+      function log(msg) {
+        console.log('[AR]', msg);
+        debugEl.style.display = 'block';
+        debugEl.innerHTML += msg + '<br>';
+        debugEl.scrollTop = debugEl.scrollHeight;
+      }
+
+      try {
+        loadingText.textContent = 'Loading A-Frame...';
+        await loadScript('https://aframe.io/releases/1.6.0/aframe.min.js');
+        log('A-Frame loaded');
+
+        loadingText.textContent = 'Loading AR.js...';
+        await loadScript('https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js');
+        log('AR.js loaded');
+
+        loadingText.textContent = 'Loading panel data...';
+        window._debugLog = log;
+
+        // Load viewer.js
+        await loadScript('/public/js/viewer.js');
+      } catch (err) {
+        loadingText.textContent = 'Error: ' + err.message;
+        log('ERROR: ' + err.message);
+      }
+    }
+
+    boot();
+  </script>
 </body>
 </html>

@@ -260,18 +260,22 @@ router.get('/marker/:value.svg', (req, res) => {
     ];
   }
 
-  // Build SVG: 5x5 grid (black border + 3x3 inner)
+  // Build SVG: 7x7 grid = 1 white margin + 5x5 marker (black border + 3x3 inner) + 1 white margin
+  // The white quiet zone is essential for ARToolKit to detect the marker edges
   const cellSize = 50;
-  const totalSize = cellSize * 5;
+  const margin = cellSize; // 1 cell of white space on each side
+  const markerSize = cellSize * 5;
+  const totalSize = markerSize + margin * 2;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalSize} ${totalSize}" width="${totalSize}" height="${totalSize}">`;
+  // White background (acts as quiet zone)
   svg += `<rect x="0" y="0" width="${totalSize}" height="${totalSize}" fill="white"/>`;
 
-  // Black border (outer ring)
+  // Black border (outer ring of the 5x5 marker, offset by margin)
   for (let r = 0; r < 5; r++) {
     for (let c = 0; c < 5; c++) {
       if (r === 0 || r === 4 || c === 0 || c === 4) {
-        svg += `<rect x="${c * cellSize}" y="${r * cellSize}" width="${cellSize}" height="${cellSize}" fill="black"/>`;
+        svg += `<rect x="${margin + c * cellSize}" y="${margin + r * cellSize}" width="${cellSize}" height="${cellSize}" fill="black"/>`;
       }
     }
   }
@@ -280,7 +284,7 @@ router.get('/marker/:value.svg', (req, res) => {
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 3; c++) {
       const fill = grid[r][c] === 1 ? 'white' : 'black';
-      svg += `<rect x="${(c + 1) * cellSize}" y="${(r + 1) * cellSize}" width="${cellSize}" height="${cellSize}" fill="${fill}"/>`;
+      svg += `<rect x="${margin + (c + 1) * cellSize}" y="${margin + (r + 1) * cellSize}" width="${cellSize}" height="${cellSize}" fill="${fill}"/>`;
     }
   }
 
