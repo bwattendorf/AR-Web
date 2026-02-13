@@ -46,11 +46,17 @@ router.post('/panels', upload.single('image'), (req, res) => {
   if (!name) return res.status(400).json({ error: 'Name is required' });
 
   // Find next available marker value (0-63)
-  // Start from 7 so the inner grid always has visible black/white contrast
+  // Use values with good visual contrast for reliable AR detection.
+  // These are sorted by how many white inner cells they have (more = easier to detect).
+  const preferredMarkers = [63,55,59,61,62,45,54,27,30,23,46,51,57,58,39,43,53,60,21,42,15,47,29,30,31];
   const used = db.prepare('SELECT marker_value FROM panels ORDER BY marker_value').all()
     .map(r => r.marker_value);
-  let marker = 7;
-  while (used.includes(marker) && marker <= 63) marker++;
+  let marker = preferredMarkers.find(m => !used.includes(m));
+  if (marker == null) {
+    // Fallback: find any available value
+    marker = 0;
+    while (used.includes(marker) && marker <= 63) marker++;
+  }
   if (marker > 63) return res.status(400).json({ error: 'All 64 marker slots are in use' });
 
   const imageFilename = req.file ? req.file.filename : null;
