@@ -253,7 +253,8 @@ function rotateGridCW(g) {
 }
 
 // Generate .patt file for AR.js pattern marker from the QR code
-// Format: 4 rotations, each with 3 channels (R,G,B), each channel is 16x16 values
+// Format: 4 rotations, each with 3 channels in BGR order, each channel is 16x16 values
+// Channel order and value padding match the official AR.js marker trainer (threex-arpatternfile.js)
 router.get('/panels/:id/marker.patt', (req, res) => {
   const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
   if (!panel) return res.status(404).json({ error: 'Panel not found' });
@@ -266,13 +267,15 @@ router.get('/panels/:id/marker.patt', (req, res) => {
   let current = sampled;
 
   for (let rot = 0; rot < 4; rot++) {
-    // 3 channels: R, G, B (for B&W QR, all channels are identical)
+    // 3 channels in BGR order (matches AR.js marker trainer: channelOffset 2,1,0)
     for (let ch = 0; ch < 3; ch++) {
       for (let y = 0; y < pattSize; y++) {
         const row = [];
         for (let x = 0; x < pattSize; x++) {
           // dark module = 0 (black), light module = 255 (white)
-          row.push(current[y][x] ? 0 : 255);
+          // pad to 3 chars to match official .patt format
+          const val = current[y][x] ? 0 : 255;
+          row.push(String(val).padStart(3));
         }
         patt += row.join(' ') + '\n';
       }
@@ -282,7 +285,7 @@ router.get('/panels/:id/marker.patt', (req, res) => {
   }
 
   res.setHeader('Content-Type', 'text/plain');
-  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader('Cache-Control', 'no-cache');
   res.send(patt);
 });
 
@@ -322,7 +325,7 @@ router.get('/panels/:id/marker.svg', (req, res) => {
 
   svg += '</svg>';
   res.setHeader('Content-Type', 'image/svg+xml');
-  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader('Cache-Control', 'no-cache');
   res.send(svg);
 });
 

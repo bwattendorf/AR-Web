@@ -27,25 +27,45 @@ async function init() {
     const annotations = await annRes.json();
     log(`Loaded ${annotations.length} annotations`);
 
+    // Pre-fetch and verify the .patt file loads
+    const pattUrl = `/api/panels/${panelId}/marker.patt`;
+    try {
+      const pattRes = await fetch(pattUrl);
+      if (!pattRes.ok) {
+        log(`ERROR: .patt file failed to load (${pattRes.status})`);
+      } else {
+        const pattText = await pattRes.text();
+        const lines = pattText.trim().split('\n').filter(l => l.trim().length > 0);
+        log(`PATT file loaded: ${pattText.length} bytes, ${lines.length} data lines`);
+        // Expected: 4 rotations * 3 channels * 16 rows = 192 data lines
+        if (lines.length !== 192) {
+          log(`WARNING: Expected 192 data lines, got ${lines.length}`);
+        }
+      }
+    } catch (e) {
+      log(`ERROR: Failed to fetch .patt file: ${e.message}`);
+    }
+
     // Build A-Frame scene dynamically so marker is correct from the start
     loadingText.textContent = 'Starting camera...';
 
     const scene = document.createElement('a-scene');
     scene.setAttribute('embedded', '');
-    scene.setAttribute('arjs', `sourceType: webcam; detectionMode: mono_and_matrix; debugUIEnabled: true;`);
+    scene.setAttribute('arjs', `sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; patternRatio: 0.5; debugUIEnabled: true;`);
     scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; antialias: true;');
     scene.setAttribute('vr-mode-ui', 'enabled: false');
 
     // Create pattern marker using the QR code as the tracking image
     const marker = document.createElement('a-marker');
     marker.setAttribute('type', 'pattern');
-    marker.setAttribute('url', `/api/panels/${panelId}/marker.patt`);
+    marker.setAttribute('url', pattUrl);
     marker.setAttribute('smooth', 'true');
     marker.setAttribute('smoothCount', '5');
     marker.setAttribute('smoothTolerance', '0.05');
     marker.setAttribute('smoothThreshold', '5');
 
-    log(`Created a-marker type=pattern url=/api/panels/${panelId}/marker.patt`);
+    log(`Created a-marker type=pattern url=${pattUrl}`);
+    log(`AR.js config: detectionMode=mono_and_matrix, patternRatio=0.5`);
 
     // Listen for marker found/lost events
     marker.addEventListener('markerFound', () => {
