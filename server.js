@@ -5,8 +5,9 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Ensure uploads directory exists
-const uploadsDir = process.env.UPLOADS_PATH || path.join(__dirname, 'uploads');
+// Persistent data directory (single Railway volume at /app/data)
+const dataDir = process.env.DATA_PATH || path.join(__dirname, 'data');
+const uploadsDir = path.join(dataDir, 'uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
 app.locals.uploadsDir = uploadsDir;
 

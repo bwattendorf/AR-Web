@@ -7,11 +7,10 @@ RUN npm install --production
 
 COPY . .
 
-RUN mkdir -p /app/uploads /app/data
+RUN mkdir -p /app/data
 
 ENV NODE_ENV=production
-ENV UPLOADS_PATH=/app/uploads
-ENV DB_PATH=/app/data
+ENV DATA_PATH=/app/data
 
 EXPOSE ${PORT:-3000}
 
