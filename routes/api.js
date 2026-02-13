@@ -295,10 +295,10 @@ router.get('/panels/:id/marker.svg', (req, res) => {
   const { grid, size } = getQRGrid(panel.id);
 
   // Pattern marker: thick black border around the QR code
-  // Border is ~40% of total width on each side for reliable detection
+  // Border is 50% of total width on each side, matching default patternRatio of 0.5
   const moduleSize = 8; // pixels per QR module
   const qrPixels = size * moduleSize;
-  const borderWidth = Math.round(qrPixels * 0.4);
+  const borderWidth = Math.round(qrPixels * 0.5);
   const totalSize = qrPixels + borderWidth * 2;
   const quietZone = Math.round(moduleSize * 2); // white margin outside
   const svgSize = totalSize + quietZone * 2;

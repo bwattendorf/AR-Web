@@ -32,7 +32,7 @@ async function init() {
 
     const scene = document.createElement('a-scene');
     scene.setAttribute('embedded', '');
-    scene.setAttribute('arjs', `sourceType: webcam; detectionMode: mono; debugUIEnabled: true;`);
+    scene.setAttribute('arjs', `sourceType: webcam; detectionMode: mono_and_matrix; debugUIEnabled: true;`);
     scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; antialias: true;');
     scene.setAttribute('vr-mode-ui', 'enabled: false');
 
@@ -42,8 +42,8 @@ async function init() {
     marker.setAttribute('url', `/api/panels/${panelId}/marker.patt`);
     marker.setAttribute('smooth', 'true');
     marker.setAttribute('smoothCount', '5');
-    marker.setAttribute('smoothTolerance', '0.01');
-    marker.setAttribute('smoothThreshold', '2');
+    marker.setAttribute('smoothTolerance', '0.05');
+    marker.setAttribute('smoothThreshold', '5');
 
     log(`Created a-marker type=pattern url=/api/panels/${panelId}/marker.patt`);
 
