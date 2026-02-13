@@ -204,99 +204,125 @@ router.get('/panels/:id/qrcode', async (req, res) => {
   }
 });
 
-// --- Barcode Marker SVG Generation ---
+// --- Pattern Marker Generation (QR code as AR marker) ---
 
-// Generate a 3x3 barcode marker SVG for a given value (0-63)
-// ARToolKit 3x3 matrix: the value is the minimum across 4 rotations
-// of the 9-bit number read from the inner 3x3 grid (row by row, MSB first).
-// We need to find the 9-bit pattern whose minimum rotation equals the requested value.
-router.get('/marker/:value.svg', (req, res) => {
-  const value = parseInt(req.params.value, 10);
-  if (isNaN(value) || value < 0 || value > 63) {
-    return res.status(400).json({ error: 'Marker value must be 0-63' });
-  }
-
-  // Rotate a 3x3 grid 90 degrees clockwise and read as 9-bit number
-  function gridToNum(g) {
-    let n = 0;
-    for (let r = 0; r < 3; r++)
-      for (let c = 0; c < 3; c++)
-        n = (n << 1) | g[r][c];
-    return n;
-  }
-
-  function rotate90(g) {
-    return [
-      [g[2][0], g[1][0], g[0][0]],
-      [g[2][1], g[1][1], g[0][1]],
-      [g[2][2], g[1][2], g[0][2]]
-    ];
-  }
-
-  function minRotation(g) {
-    let min = gridToNum(g);
-    let r = g;
-    for (let i = 0; i < 3; i++) {
-      r = rotate90(r);
-      min = Math.min(min, gridToNum(r));
+// Helper: get QR module grid for a panel's view URL
+function getQRGrid(panelId) {
+  const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+  const viewUrl = `${baseUrl}/view/${panelId}`;
+  const qr = QRCode.create(viewUrl, { errorCorrectionLevel: 'M' });
+  const size = qr.modules.size;
+  const grid = [];
+  for (let y = 0; y < size; y++) {
+    const row = [];
+    for (let x = 0; x < size; x++) {
+      row.push(qr.modules.data[y * size + x] ? 1 : 0); // 1 = dark, 0 = light
     }
-    return min;
+    grid.push(row);
   }
+  return { grid, size, url: viewUrl };
+}
 
-  // Find the 9-bit pattern whose minimum rotation equals the requested value
-  let grid = null;
-  for (let bits = 0; bits < 512; bits++) {
-    const g = [
-      [(bits >> 8) & 1, (bits >> 7) & 1, (bits >> 6) & 1],
-      [(bits >> 5) & 1, (bits >> 4) & 1, (bits >> 3) & 1],
-      [(bits >> 2) & 1, (bits >> 1) & 1, bits & 1]
-    ];
-    if (minRotation(g) === value) {
-      grid = g;
-      break;
+// Resample a grid to a target size using nearest-neighbor
+function resampleGrid(grid, fromSize, toSize) {
+  const out = [];
+  for (let y = 0; y < toSize; y++) {
+    const row = [];
+    for (let x = 0; x < toSize; x++) {
+      const sx = Math.floor(x * fromSize / toSize);
+      const sy = Math.floor(y * fromSize / toSize);
+      row.push(grid[sy][sx]);
     }
+    out.push(row);
+  }
+  return out;
+}
+
+// Rotate a grid 90° clockwise
+function rotateGridCW(g) {
+  const s = g.length;
+  const out = [];
+  for (let y = 0; y < s; y++) {
+    const row = [];
+    for (let x = 0; x < s; x++) {
+      row.push(g[s - 1 - x][y]);
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+// Generate .patt file for AR.js pattern marker from the QR code
+// Format: 4 rotations, each with 3 channels (R,G,B), each channel is 16x16 values
+router.get('/panels/:id/marker.patt', (req, res) => {
+  const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
+  if (!panel) return res.status(404).json({ error: 'Panel not found' });
+
+  const { grid, size } = getQRGrid(panel.id);
+  const pattSize = 16;
+  const sampled = resampleGrid(grid, size, pattSize);
+
+  let patt = '';
+  let current = sampled;
+
+  for (let rot = 0; rot < 4; rot++) {
+    // 3 channels: R, G, B (for B&W QR, all channels are identical)
+    for (let ch = 0; ch < 3; ch++) {
+      for (let y = 0; y < pattSize; y++) {
+        const row = [];
+        for (let x = 0; x < pattSize; x++) {
+          // dark module = 0 (black), light module = 255 (white)
+          row.push(current[y][x] ? 0 : 255);
+        }
+        patt += row.join(' ') + '\n';
+      }
+    }
+    patt += '\n';
+    current = rotateGridCW(current);
   }
 
-  if (!grid) {
-    // Fallback: encode value as 6 bits in first two rows
-    grid = [
-      [(value >> 5) & 1, (value >> 4) & 1, (value >> 3) & 1],
-      [(value >> 2) & 1, (value >> 1) & 1, value & 1],
-      [0, 0, 0]
-    ];
-  }
+  res.setHeader('Content-Type', 'text/plain');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.send(patt);
+});
 
-  // Build SVG: 7x7 grid = 1 white margin + 5x5 marker (black border + 3x3 inner) + 1 white margin
-  // The white quiet zone is essential for ARToolKit to detect the marker edges
-  const cellSize = 50;
-  const margin = cellSize; // 1 cell of white space on each side
-  const markerSize = cellSize * 5;
-  const totalSize = markerSize + margin * 2;
+// Generate an SVG of the QR code inside a thick black border (pattern marker format)
+// This is what gets printed — the black border is what AR.js detects
+router.get('/panels/:id/marker.svg', (req, res) => {
+  const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
+  if (!panel) return res.status(404).json({ error: 'Panel not found' });
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalSize} ${totalSize}" width="${totalSize}" height="${totalSize}">`;
-  // White background (acts as quiet zone)
-  svg += `<rect x="0" y="0" width="${totalSize}" height="${totalSize}" fill="white"/>`;
+  const { grid, size } = getQRGrid(panel.id);
 
-  // Black border (outer ring of the 5x5 marker, offset by margin)
-  for (let r = 0; r < 5; r++) {
-    for (let c = 0; c < 5; c++) {
-      if (r === 0 || r === 4 || c === 0 || c === 4) {
-        svg += `<rect x="${margin + c * cellSize}" y="${margin + r * cellSize}" width="${cellSize}" height="${cellSize}" fill="black"/>`;
+  // Pattern marker: thick black border around the QR code
+  // Border is ~40% of total width on each side for reliable detection
+  const moduleSize = 8; // pixels per QR module
+  const qrPixels = size * moduleSize;
+  const borderWidth = Math.round(qrPixels * 0.4);
+  const totalSize = qrPixels + borderWidth * 2;
+  const quietZone = Math.round(moduleSize * 2); // white margin outside
+  const svgSize = totalSize + quietZone * 2;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}" width="${svgSize}" height="${svgSize}">`;
+  // White background (quiet zone)
+  svg += `<rect x="0" y="0" width="${svgSize}" height="${svgSize}" fill="white"/>`;
+  // Black border
+  svg += `<rect x="${quietZone}" y="${quietZone}" width="${totalSize}" height="${totalSize}" fill="black"/>`;
+  // White inner area for QR code
+  svg += `<rect x="${quietZone + borderWidth}" y="${quietZone + borderWidth}" width="${qrPixels}" height="${qrPixels}" fill="white"/>`;
+
+  // QR modules
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (grid[y][x]) { // dark module
+        svg += `<rect x="${quietZone + borderWidth + x * moduleSize}" y="${quietZone + borderWidth + y * moduleSize}" width="${moduleSize}" height="${moduleSize}" fill="black"/>`;
       }
     }
   }
 
-  // Inner 3x3 pattern: 1 = white cell, 0 = black cell
-  for (let r = 0; r < 3; r++) {
-    for (let c = 0; c < 3; c++) {
-      const fill = grid[r][c] === 1 ? 'white' : 'black';
-      svg += `<rect x="${margin + (c + 1) * cellSize}" y="${margin + (r + 1) * cellSize}" width="${cellSize}" height="${cellSize}" fill="${fill}"/>`;
-    }
-  }
-
   svg += '</svg>';
-
   res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
   res.send(svg);
 });
 

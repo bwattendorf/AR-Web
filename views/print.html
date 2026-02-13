@@ -14,34 +14,15 @@
     .subtitle { color: #666; margin-bottom: 20px; font-size: 0.95em; }
     .no-print { margin: 20px 0; }
 
-    /* Combined sticker */
+    /* Combined sticker - QR code IS the marker now */
     .sticker {
       display: inline-block;
-      border: 3px solid #000;
       padding: 12px;
       margin: 20px auto;
       background: #fff;
     }
-    .sticker-inner {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
     .sticker-marker img {
-      width: 280px; height: 280px; display: block;
-    }
-    .sticker-qr {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-    }
-    .sticker-qr img {
-      width: 140px; height: 140px; display: block;
-    }
-    .sticker-qr .scan-label {
-      font-size: 0.7em; font-weight: bold; text-transform: uppercase;
-      letter-spacing: 1px; color: #333;
+      width: 320px; height: 320px; display: block;
     }
     .sticker-label {
       margin-top: 8px;
@@ -50,6 +31,11 @@
       text-align: center;
       border-top: 1px solid #ddd;
       padding-top: 8px;
+    }
+    .sticker-hint {
+      font-size: 0.65em;
+      color: #888;
+      margin-top: 4px;
     }
 
     /* Cut line */
@@ -91,16 +77,11 @@
     <div class="cut-guide">
       <p class="cut-label">-- cut along dashed line --</p>
       <div class="sticker" id="sticker">
-        <div class="sticker-inner">
-          <div class="sticker-marker">
-            <img id="marker-image" src="" alt="AR Marker">
-          </div>
-          <div class="sticker-qr">
-            <span class="scan-label">Scan Me</span>
-            <img id="qr-image" src="" alt="QR Code">
-          </div>
+        <div class="sticker-marker">
+          <img id="marker-image" src="" alt="AR Marker (scan QR to open viewer)">
         </div>
         <div class="sticker-label" id="sticker-label"></div>
+        <div class="sticker-hint">Scan the QR code with your phone camera, then point at this marker</div>
       </div>
       <p class="cut-label">-- cut along dashed line --</p>
     </div>
@@ -115,9 +96,9 @@
       </ol>
       <h2 style="margin-top:14px;">For Technicians</h2>
       <ol>
-        <li>Scan the QR code on the sticker with your phone camera</li>
+        <li>Scan the QR code in the center of the marker with your phone camera</li>
         <li>Allow camera access when prompted</li>
-        <li>Point your phone at the barcode marker on the sticker</li>
+        <li>Point your phone at the full marker (including black border)</li>
         <li>Color-coded wiring labels will appear overlaid on the panel</li>
       </ol>
     </div>
@@ -134,13 +115,8 @@
       document.getElementById('panel-desc').textContent = panel.description || '';
       document.getElementById('sticker-label').textContent = panel.name;
 
-      // QR code
-      const qrRes = await fetch(`/api/panels/${panelId}/qrcode`);
-      const qrData = await qrRes.json();
-      document.getElementById('qr-image').src = qrData.qr;
-
-      // Marker SVG as data URI
-      const markerRes = await fetch(`/api/marker/${panel.marker_value}.svg`);
+      // Pattern marker SVG (QR code inside thick black border)
+      const markerRes = await fetch(`/api/panels/${panelId}/marker.svg`);
       const svgText = await markerRes.text();
       document.getElementById('marker-image').src = 'data:image/svg+xml;base64,' + btoa(svgText);
     }

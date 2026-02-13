@@ -27,21 +27,25 @@ async function init() {
     const annotations = await annRes.json();
     log(`Loaded ${annotations.length} annotations`);
 
-    // Build A-Frame scene dynamically so marker value is correct from the start
+    // Build A-Frame scene dynamically so marker is correct from the start
     loadingText.textContent = 'Starting camera...';
 
     const scene = document.createElement('a-scene');
     scene.setAttribute('embedded', '');
-    scene.setAttribute('arjs', `sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: true;`);
+    scene.setAttribute('arjs', `sourceType: webcam; detectionMode: mono; debugUIEnabled: true;`);
     scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; antialias: true;');
     scene.setAttribute('vr-mode-ui', 'enabled: false');
 
-    // Create marker with the correct value
+    // Create pattern marker using the QR code as the tracking image
     const marker = document.createElement('a-marker');
-    marker.setAttribute('type', 'barcode');
-    marker.setAttribute('value', panel.marker_value);
+    marker.setAttribute('type', 'pattern');
+    marker.setAttribute('url', `/api/panels/${panelId}/marker.patt`);
+    marker.setAttribute('smooth', 'true');
+    marker.setAttribute('smoothCount', '5');
+    marker.setAttribute('smoothTolerance', '0.01');
+    marker.setAttribute('smoothThreshold', '2');
 
-    log(`Created a-marker type=barcode value=${panel.marker_value}`);
+    log(`Created a-marker type=pattern url=/api/panels/${panelId}/marker.patt`);
 
     // Listen for marker found/lost events
     marker.addEventListener('markerFound', () => {
