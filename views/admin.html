@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - AR Panel Viewer</title>
+  <link rel="stylesheet" href="/public/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AR Panel Admin</h1>
+      <a href="/" class="btn btn-secondary">Back to Home</a>
+    </header>
+
+    <section class="card" id="create-section">
+      <h2>Create New Panel</h2>
+      <form id="create-form">
+        <div class="form-group">
+          <label for="panel-name">Panel Name</label>
+          <input type="text" id="panel-name" required placeholder="e.g. DSC PowerSeries Neo">
+        </div>
+        <div class="form-group">
+          <label for="panel-desc">Description</label>
+          <textarea id="panel-desc" rows="2" placeholder="Panel description"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="panel-image">Panel Photo</label>
+          <input type="file" id="panel-image" accept="image/*">
+        </div>
+        <button type="submit" class="btn">Create Panel</button>
+      </form>
+    </section>
+
+    <section id="panels-section">
+      <h2>Panels</h2>
+      <div id="panels-list" class="panels-grid"></div>
+    </section>
+  </div>
+
+  <script>
+    const panelsList = document.getElementById('panels-list');
+
+    async function loadPanels() {
+      const res = await fetch('/api/panels');
+      const panels = await res.json();
+      panelsList.innerHTML = '';
+
+      if (panels.length === 0) {
+        panelsList.innerHTML = '<p class="empty">No panels yet. Create one above.</p>';
+        return;
+      }
+
+      panels.forEach(panel => {
+        const div = document.createElement('div');
+        div.className = 'panel-card card';
+        div.innerHTML = `
+          ${panel.image_filename
+            ? `<img src="/uploads/${panel.image_filename}" alt="${panel.name}" class="panel-thumb">`
+            : '<div class="panel-thumb placeholder">No Image</div>'}
+          <h3>${panel.name}</h3>
+          <p>${panel.description || ''}</p>
+          <p class="meta">Marker: ${panel.marker_value}</p>
+          <div class="panel-actions">
+            <a href="/editor/${panel.id}" class="btn btn-small">Edit Annotations</a>
+            <a href="/view/${panel.id}" class="btn btn-small btn-secondary">AR View</a>
+            <a href="/print/${panel.id}" class="btn btn-small btn-secondary">Print Sheet</a>
+            <button class="btn btn-small btn-danger" onclick="deletePanel(${panel.id})">Delete</button>
+          </div>
+        `;
+        panelsList.appendChild(div);
+      });
+    }
+
+    document.getElementById('create-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('name', document.getElementById('panel-name').value);
+      formData.append('description', document.getElementById('panel-desc').value);
+      const imageInput = document.getElementById('panel-image');
+      if (imageInput.files[0]) {
+        formData.append('image', imageInput.files[0]);
+      }
+
+      const res = await fetch('/api/panels', { method: 'POST', body: formData });
+      if (res.ok) {
+        document.getElementById('create-form').reset();
+        loadPanels();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to create panel');
+      }
+    });
+
+    async function deletePanel(id) {
+      if (!confirm('Delete this panel and all its annotations?')) return;
+      await fetch(`/api/panels/${id}`, { method: 'DELETE' });
+      loadPanels();
+    }
+
+    loadPanels();
+  </script>
+</body>
+</html>

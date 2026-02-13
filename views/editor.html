@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Annotation Editor - AR Panel Viewer</title>
+  <link rel="stylesheet" href="/public/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1 id="panel-title">Loading...</h1>
+      <div>
+        <a href="/admin" class="btn btn-secondary">Back to Admin</a>
+        <a id="view-link" href="#" class="btn btn-secondary">AR View</a>
+        <a id="print-link" href="#" class="btn btn-secondary">Print Sheet</a>
+      </div>
+    </header>
+
+    <section class="card" id="upload-section">
+      <h2>Panel Image</h2>
+      <form id="upload-form">
+        <div class="form-group">
+          <input type="file" id="image-input" accept="image/*">
+          <button type="submit" class="btn btn-small">Upload Image</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="editor-section">
+      <p class="hint">Click on the image to add an annotation. Drag existing dots to reposition.</p>
+      <div id="image-container" class="image-container">
+        <img id="panel-image" src="" alt="Panel" style="display:none;">
+        <div id="annotations-overlay" class="annotations-overlay"></div>
+      </div>
+    </section>
+
+    <div id="annotation-form-popup" class="popup" style="display:none;">
+      <div class="popup-content card">
+        <h3 id="popup-title">New Annotation</h3>
+        <form id="annotation-form">
+          <input type="hidden" id="ann-id">
+          <input type="hidden" id="ann-x">
+          <input type="hidden" id="ann-y">
+          <div class="form-group">
+            <label for="ann-label">Label</label>
+            <input type="text" id="ann-label" required placeholder="e.g. Zone 1 Input">
+          </div>
+          <div class="form-group">
+            <label for="ann-desc">Description</label>
+            <textarea id="ann-desc" rows="2" placeholder="Wiring description"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="ann-color">Color</label>
+            <input type="color" id="ann-color" value="#ff0000">
+          </div>
+          <div class="popup-actions">
+            <button type="submit" class="btn">Save</button>
+            <button type="button" class="btn btn-secondary" onclick="closePopup()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <section id="annotations-list-section" class="card">
+      <h2>Annotations</h2>
+      <table id="annotations-table">
+        <thead>
+          <tr>
+            <th>Color</th>
+            <th>Label</th>
+            <th>Description</th>
+            <th>Position</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="annotations-tbody"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script src="/public/js/annotation-editor.js"></script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Print - AR Panel Sheet</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .print-sheet {
+      max-width: 700px; margin: 0 auto; text-align: center;
+    }
+    h1 { font-size: 1.8em; margin-bottom: 5px; }
+    .subtitle { color: #666; margin-bottom: 20px; font-size: 0.95em; }
+    .section { margin: 25px 0; }
+    .section h2 { font-size: 1.1em; margin-bottom: 10px; color: #333; text-transform: uppercase; letter-spacing: 1px; }
+    .qr-container img { width: 200px; height: 200px; }
+    .marker-container img, .marker-container svg {
+      width: 250px; height: 250px; border: 2px solid #ccc;
+    }
+    .url-text { font-size: 0.85em; color: #666; word-break: break-all; margin-top: 5px; }
+    .instructions {
+      text-align: left; border: 2px dashed #ccc; padding: 15px 20px;
+      margin-top: 25px; border-radius: 8px;
+    }
+    .instructions h2 { margin-bottom: 8px; }
+    .instructions ol { padding-left: 20px; }
+    .instructions li { margin-bottom: 6px; font-size: 0.95em; }
+    .no-print { margin: 20px 0; }
+    @media print {
+      .no-print { display: none; }
+      body { padding: 10mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-sheet">
+    <div class="no-print">
+      <button onclick="window.print()" style="padding:10px 30px;font-size:1.1em;cursor:pointer;">Print This Sheet</button>
+      <a href="/admin" style="margin-left:15px;">Back to Admin</a>
+    </div>
+
+    <h1 id="panel-name">Loading...</h1>
+    <p class="subtitle" id="panel-desc"></p>
+
+    <div class="section qr-container">
+      <h2>1. Scan this QR Code</h2>
+      <img id="qr-image" src="" alt="QR Code">
+      <p class="url-text" id="view-url"></p>
+    </div>
+
+    <div class="section marker-container">
+      <h2>2. Point camera at this marker</h2>
+      <img id="marker-image" src="" alt="AR Marker">
+      <p class="url-text">Place this marker next to the panel</p>
+    </div>
+
+    <div class="instructions">
+      <h2>Instructions</h2>
+      <ol>
+        <li>Scan the QR code above with your phone camera</li>
+        <li>Allow camera access when prompted</li>
+        <li>Point your phone camera at the barcode marker above (placed next to the panel)</li>
+        <li>Color-coded wiring labels will appear floating above the marker</li>
+        <li>Move your phone around to see all annotations from different angles</li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    const panelId = window.location.pathname.split('/').pop();
+
+    async function load() {
+      // Load panel
+      const panelRes = await fetch(`/api/panels/${panelId}`);
+      if (!panelRes.ok) { document.getElementById('panel-name').textContent = 'Panel not found'; return; }
+      const panel = await panelRes.json();
+      document.getElementById('panel-name').textContent = panel.name;
+      document.getElementById('panel-desc').textContent = panel.description || '';
+
+      // Load QR code
+      const qrRes = await fetch(`/api/panels/${panelId}/qrcode`);
+      const qrData = await qrRes.json();
+      document.getElementById('qr-image').src = qrData.qr;
+      document.getElementById('view-url').textContent = qrData.url;
+
+      // Load marker SVG
+      document.getElementById('marker-image').src = `/api/marker/${panel.marker_value}.svg`;
+    }
+
+    load();
+  </script>
+</body>
+</html>

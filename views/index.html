@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR Panel Wiring Viewer</title>
+  <link rel="stylesheet" href="/public/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="hero">
+      <h1>AR Panel Wiring Viewer</h1>
+      <p>Augmented reality wiring annotations for security panels</p>
+      <a href="/admin" class="btn">Admin Dashboard</a>
+    </header>
+
+    <section>
+      <h2>Available Panels</h2>
+      <div id="panels-list" class="panels-grid"></div>
+    </section>
+  </div>
+
+  <script>
+    async function loadPanels() {
+      const res = await fetch('/api/panels');
+      const panels = await res.json();
+      const list = document.getElementById('panels-list');
+
+      if (panels.length === 0) {
+        list.innerHTML = '<p class="empty">No panels available yet.</p>';
+        return;
+      }
+
+      panels.forEach(panel => {
+        const div = document.createElement('div');
+        div.className = 'panel-card card';
+        div.innerHTML = `
+          ${panel.image_filename
+            ? `<img src="/uploads/${panel.image_filename}" alt="${panel.name}" class="panel-thumb">`
+            : '<div class="panel-thumb placeholder">No Image</div>'}
+          <h3>${panel.name}</h3>
+          <p>${panel.description || ''}</p>
+          <div class="panel-actions">
+            <a href="/view/${panel.id}" class="btn btn-small">Open AR View</a>
+            <a href="/print/${panel.id}" class="btn btn-small btn-secondary">Print Sheet</a>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    loadPanels();
+  </script>
+</body>
+</html>

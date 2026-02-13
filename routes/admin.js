@@ -1,0 +1,32 @@
+const express = require('express');
+const router = express.Router();
+const path = require('path');
+
+const viewsDir = path.join(__dirname, '..', 'views');
+
+// Landing page
+router.get('/', (req, res) => {
+  res.sendFile(path.join(viewsDir, 'index.html'));
+});
+
+// Admin dashboard
+router.get('/admin', (req, res) => {
+  res.sendFile(path.join(viewsDir, 'admin.html'));
+});
+
+// Annotation editor for a specific panel
+router.get('/editor/:id', (req, res) => {
+  res.sendFile(path.join(viewsDir, 'editor.html'));
+});
+
+// AR viewer for a specific panel
+router.get('/view/:id', (req, res) => {
+  res.sendFile(path.join(viewsDir, 'viewer.html'));
+});
+
+// Print page for a specific panel
+router.get('/print/:id', (req, res) => {
+  res.sendFile(path.join(viewsDir, 'print.html'));
+});
+
+module.exports = router;
