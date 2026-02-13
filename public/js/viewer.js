@@ -41,9 +41,9 @@ async function init() {
     marker.setAttribute('type', 'barcode');
     marker.setAttribute('value', panel.marker_value);
     marker.setAttribute('smooth', 'true');
-    marker.setAttribute('smoothCount', '5');
-    marker.setAttribute('smoothTolerance', '0.05');
-    marker.setAttribute('smoothThreshold', '5');
+    marker.setAttribute('smoothCount', '10');
+    marker.setAttribute('smoothTolerance', '0.1');
+    marker.setAttribute('smoothThreshold', '15');
 
     log(`Created a-marker type=barcode value=${panel.marker_value}`);
     log(`AR.js config: detectionMode=mono_and_matrix, matrixCodeType=3x3`);

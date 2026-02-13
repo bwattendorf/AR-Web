@@ -324,11 +324,12 @@ router.get('/panels/:id/marker.svg', (req, res) => {
 
   // Barcode marker sizing (must match patternRatio: 0.5)
   // Inner 3x3 pattern = 50% of total barcode marker size
-  const barcodeInner = 40; // 3x3 cells, ~13px each
-  const barcodeBorder = 20; // border on each side (so total = inner + 2*border = 80)
-  const barcodeTotal = barcodeInner + barcodeBorder * 2; // 80px
+  const barcodeInner = 48; // 3x3 cells, 16px each
+  const barcodeBorder = 24; // border on each side (so total = inner + 2*border = 96)
+  const barcodeTotal = barcodeInner + barcodeBorder * 2; // 96px
   const barcodeQuiet = moduleSize * 2; // 16px quiet zone around barcode
-  const clearSize = barcodeTotal + barcodeQuiet * 2; // ~112px total cleared area
+  const clearSize = barcodeTotal + barcodeQuiet * 2; // 128px total cleared area
+  // 128px = 16 modules → 16x16/33x33 = 23.5% of QR, within H-level 30% budget
 
   // Center of QR code in pixel coords
   const qrCenter = qrPixels / 2;
