@@ -16,19 +16,28 @@ async function init() {
   // Set marker value to match this panel's assigned marker
   marker.setAttribute('value', panel.marker_value);
 
+  // Marker position in the photo (where the sticker was placed)
+  const markerX = panel.marker_x_percent != null ? panel.marker_x_percent : 0.5;
+  const markerY = panel.marker_y_percent != null ? panel.marker_y_percent : 0.5;
+
   // Load annotations
   const annRes = await fetch(`/api/panels/${panelId}/annotations`);
   const annotations = await annRes.json();
 
   // Create AR entities for each annotation
+  // Annotations are positioned RELATIVE to the marker position in the photo
+  // so the AR overlay matches the physical panel layout
+  const scale = 2.5; // controls how spread out annotations are in 3D space
+
   annotations.forEach((ann, index) => {
-    // Map 2D percentages (0-1) to 3D coordinates
-    // x_percent 0→1 maps to x -1→+1
-    // y_percent 0→1 maps to z -1→+1 (depth on the marker plane)
-    // y (height) is above the marker
-    const x = (ann.x_percent - 0.5) * 2;
-    const z = (ann.y_percent - 0.5) * 2;
-    const y = 0.3 + (index * 0.05); // stagger heights slightly
+    // Offset from marker position in image space
+    const dx = ann.x_percent - markerX;
+    const dy = ann.y_percent - markerY;
+
+    // Map to 3D: x stays x, image-y maps to z (depth), y (up) is for label height
+    const x = dx * scale;
+    const z = dy * scale;
+    const y = 0.3 + (index * 0.05); // stagger label heights
 
     // Container entity
     const entity = document.createElement('a-entity');
@@ -50,14 +59,14 @@ async function init() {
     text.setAttribute('width', '1.5');
     text.setAttribute('position', '0 0 0.002');
 
-    // Connecting line (thin cylinder from label down to marker surface)
+    // Connecting line from label down to marker surface
     const line = document.createElement('a-entity');
     const lineHeight = y;
     line.setAttribute('geometry', `primitive: cylinder; radius: 0.008; height: ${lineHeight}`);
     line.setAttribute('material', `color: ${ann.color}; opacity: 0.6`);
     line.setAttribute('position', `0 ${-lineHeight / 2} 0`);
 
-    // Small dot at the base
+    // Small dot at the base showing where on the panel this annotation points
     const dot = document.createElement('a-sphere');
     dot.setAttribute('radius', '0.025');
     dot.setAttribute('color', ann.color);

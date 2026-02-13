@@ -13,30 +13,47 @@
       <div>
         <a href="/admin" class="btn btn-secondary">Back to Admin</a>
         <a id="view-link" href="#" class="btn btn-secondary">AR View</a>
-        <a id="print-link" href="#" class="btn btn-secondary">Print Sheet</a>
+        <a id="print-link" href="#" class="btn btn-secondary">Print Sticker</a>
       </div>
     </header>
 
     <section class="card" id="upload-section">
-      <h2>Panel Image</h2>
-      <form id="upload-form">
+      <h2>Panel Photo</h2>
+      <p class="hint">Upload a photo of the panel with the printed sticker already applied.</p>
+      <form id="upload-form" style="margin-top:8px;">
         <div class="form-group">
           <input type="file" id="image-input" accept="image/*">
-          <button type="submit" class="btn btn-small">Upload Image</button>
+          <button type="submit" class="btn btn-small">Upload Photo</button>
         </div>
       </form>
     </section>
 
+    <!-- Step indicator -->
+    <div id="workflow-steps" class="workflow-steps" style="display:none;">
+      <div class="step" id="step-marker">
+        <span class="step-num">1</span>
+        <span class="step-text">Click on the sticker in the photo to mark its position</span>
+      </div>
+      <div class="step" id="step-annotate">
+        <span class="step-num">2</span>
+        <span class="step-text">Click anywhere on the photo to add wiring annotations</span>
+      </div>
+    </div>
+
     <section id="editor-section">
       <div class="editor-toolbar">
-        <p class="hint">Click on the image to add an annotation. Drag existing dots to reposition.</p>
-        <button id="toggle-marker-btn" class="btn btn-small btn-secondary" onclick="toggleMarkerMode()">Place Marker</button>
+        <div id="mode-label" class="mode-label"></div>
+        <div id="mode-buttons">
+          <button id="btn-mark-sticker" class="btn btn-small" onclick="setMode('marker')" style="display:none;">Mark Sticker</button>
+          <button id="btn-annotate" class="btn btn-small" onclick="setMode('annotate')" style="display:none;">Add Annotations</button>
+        </div>
       </div>
       <div id="image-container" class="image-container">
         <img id="panel-image" src="" alt="Panel" style="display:none;">
         <div id="annotations-overlay" class="annotations-overlay"></div>
-        <div id="marker-overlay" class="marker-overlay" style="display:none;">
-          <img src="" id="marker-overlay-img" alt="AR Marker" draggable="false">
+        <div id="marker-indicator" class="marker-indicator" style="display:none;">
+          <div class="marker-crosshair"></div>
+          <span class="marker-tag">STICKER</span>
         </div>
       </div>
     </section>

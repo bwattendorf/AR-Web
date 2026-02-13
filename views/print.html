@@ -3,33 +3,78 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Print - AR Panel Sheet</title>
+  <title>Print - AR Panel Sticker</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; padding: 20px; }
     .print-sheet {
       max-width: 700px; margin: 0 auto; text-align: center;
     }
-    h1 { font-size: 1.8em; margin-bottom: 5px; }
+    h1 { font-size: 1.6em; margin-bottom: 5px; }
     .subtitle { color: #666; margin-bottom: 20px; font-size: 0.95em; }
-    .section { margin: 25px 0; }
-    .section h2 { font-size: 1.1em; margin-bottom: 10px; color: #333; text-transform: uppercase; letter-spacing: 1px; }
-    .qr-container img { width: 200px; height: 200px; }
-    .marker-container img, .marker-container svg {
-      width: 250px; height: 250px; border: 2px solid #ccc;
+    .no-print { margin: 20px 0; }
+
+    /* Combined sticker */
+    .sticker {
+      display: inline-block;
+      border: 3px solid #000;
+      padding: 12px;
+      margin: 20px auto;
+      background: #fff;
     }
-    .url-text { font-size: 0.85em; color: #666; word-break: break-all; margin-top: 5px; }
+    .sticker-inner {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .sticker-marker img {
+      width: 200px; height: 200px; display: block;
+    }
+    .sticker-qr {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .sticker-qr img {
+      width: 140px; height: 140px; display: block;
+    }
+    .sticker-qr .scan-label {
+      font-size: 0.7em; font-weight: bold; text-transform: uppercase;
+      letter-spacing: 1px; color: #333;
+    }
+    .sticker-label {
+      margin-top: 8px;
+      font-size: 0.75em;
+      color: #555;
+      text-align: center;
+      border-top: 1px solid #ddd;
+      padding-top: 8px;
+    }
+
+    /* Cut line */
+    .cut-guide {
+      border: 2px dashed #ccc;
+      padding: 20px;
+      display: inline-block;
+      margin: 10px auto;
+      border-radius: 4px;
+    }
+    .cut-label { font-size: 0.7em; color: #aaa; margin-bottom: 6px; }
+
     .instructions {
       text-align: left; border: 2px dashed #ccc; padding: 15px 20px;
-      margin-top: 25px; border-radius: 8px;
+      margin-top: 25px; border-radius: 8px; max-width: 500px;
+      display: inline-block;
     }
-    .instructions h2 { margin-bottom: 8px; }
+    .instructions h2 { font-size: 1em; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; color: #333; }
     .instructions ol { padding-left: 20px; }
-    .instructions li { margin-bottom: 6px; font-size: 0.95em; }
-    .no-print { margin: 20px 0; }
+    .instructions li { margin-bottom: 6px; font-size: 0.9em; }
+
     @media print {
       .no-print { display: none; }
-      body { padding: 10mm; }
+      body { padding: 5mm; }
+      .cut-guide { border-color: #999; }
     }
   </style>
 </head>
@@ -43,36 +88,37 @@
     <h1 id="panel-name">Loading...</h1>
     <p class="subtitle" id="panel-desc"></p>
 
-    <div class="section qr-container">
-      <h2>1. Scan this QR Code</h2>
-      <img id="qr-image" src="" alt="QR Code">
-      <p class="url-text" id="view-url"></p>
-    </div>
-
-    <div class="section marker-container">
-      <h2>2. Point camera at this marker</h2>
-      <img id="marker-image" src="" alt="AR Marker">
-      <p class="url-text">Place this marker next to the panel</p>
-    </div>
-
-    <div class="section placement-guide" id="placement-section" style="display:none;">
-      <h2>3. Marker Placement Guide</h2>
-      <div style="position:relative;display:inline-block;max-width:500px;">
-        <img id="panel-photo" src="" alt="Panel" style="max-width:100%;border-radius:8px;">
-        <img id="placement-marker" src="" alt="Marker position"
-          style="position:absolute;width:15%;border:2px dashed #2563eb;background:rgba(255,255,255,0.85);padding:2px;transform:translate(-50%,-50%);">
+    <div class="cut-guide">
+      <p class="cut-label">-- cut along dashed line --</p>
+      <div class="sticker" id="sticker">
+        <div class="sticker-inner">
+          <div class="sticker-marker">
+            <img id="marker-image" src="" alt="AR Marker">
+          </div>
+          <div class="sticker-qr">
+            <span class="scan-label">Scan Me</span>
+            <img id="qr-image" src="" alt="QR Code">
+          </div>
+        </div>
+        <div class="sticker-label" id="sticker-label"></div>
       </div>
-      <p class="url-text">Place the printed marker at the position shown above</p>
+      <p class="cut-label">-- cut along dashed line --</p>
     </div>
 
     <div class="instructions">
-      <h2>Instructions</h2>
+      <h2>Setup Instructions</h2>
       <ol>
-        <li>Scan the QR code above with your phone camera</li>
+        <li>Cut out the sticker above along the dashed lines</li>
+        <li>Apply the sticker directly onto the security panel</li>
+        <li>Take a photo of the panel with the sticker visible</li>
+        <li>Upload the photo in the <a href="/admin">Admin dashboard</a> and place annotation overlays</li>
+      </ol>
+      <h2 style="margin-top:14px;">For Technicians</h2>
+      <ol>
+        <li>Scan the QR code on the sticker with your phone camera</li>
         <li>Allow camera access when prompted</li>
-        <li>Point your phone camera at the barcode marker above (placed next to the panel)</li>
-        <li>Color-coded wiring labels will appear floating above the marker</li>
-        <li>Move your phone around to see all annotations from different angles</li>
+        <li>Point your phone at the barcode marker on the sticker</li>
+        <li>Color-coded wiring labels will appear overlaid on the panel</li>
       </ol>
     </div>
   </div>
@@ -81,36 +127,22 @@
     const panelId = window.location.pathname.split('/').pop();
 
     async function load() {
-      // Load panel
       const panelRes = await fetch(`/api/panels/${panelId}`);
       if (!panelRes.ok) { document.getElementById('panel-name').textContent = 'Panel not found'; return; }
       const panel = await panelRes.json();
       document.getElementById('panel-name').textContent = panel.name;
       document.getElementById('panel-desc').textContent = panel.description || '';
+      document.getElementById('sticker-label').textContent = panel.name;
 
-      // Load QR code
+      // QR code
       const qrRes = await fetch(`/api/panels/${panelId}/qrcode`);
       const qrData = await qrRes.json();
       document.getElementById('qr-image').src = qrData.qr;
-      document.getElementById('view-url').textContent = qrData.url;
 
-      // Load marker SVG as data URI for reliable rendering
+      // Marker SVG as data URI
       const markerRes = await fetch(`/api/marker/${panel.marker_value}.svg`);
       const svgText = await markerRes.text();
-      const markerDataUri = 'data:image/svg+xml;base64,' + btoa(svgText);
-      document.getElementById('marker-image').src = markerDataUri;
-
-      // Show placement guide if panel has a photo
-      if (panel.image_filename) {
-        document.getElementById('placement-section').style.display = '';
-        document.getElementById('panel-photo').src = `/uploads/${panel.image_filename}`;
-        const pm = document.getElementById('placement-marker');
-        pm.src = markerDataUri;
-        const mx = panel.marker_x_percent != null ? panel.marker_x_percent : 0.5;
-        const my = panel.marker_y_percent != null ? panel.marker_y_percent : 0.5;
-        pm.style.left = `${mx * 100}%`;
-        pm.style.top = `${my * 100}%`;
-      }
+      document.getElementById('marker-image').src = 'data:image/svg+xml;base64,' + btoa(svgText);
     }
 
     load();

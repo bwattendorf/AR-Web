@@ -2,7 +2,7 @@ const panelId = window.location.pathname.split('/').pop();
 let panel = null;
 let annotations = [];
 let dragging = null;
-let markerMode = false;
+let currentMode = 'annotate'; // 'marker' or 'annotate'
 
 // DOM elements
 const panelTitle = document.getElementById('panel-title');
@@ -19,6 +19,42 @@ const annLabelInput = document.getElementById('ann-label');
 const annDescInput = document.getElementById('ann-desc');
 const annColorInput = document.getElementById('ann-color');
 const tbody = document.getElementById('annotations-tbody');
+const markerIndicator = document.getElementById('marker-indicator');
+const modeLabel = document.getElementById('mode-label');
+const workflowSteps = document.getElementById('workflow-steps');
+const btnMarkSticker = document.getElementById('btn-mark-sticker');
+const btnAnnotate = document.getElementById('btn-annotate');
+const stepMarker = document.getElementById('step-marker');
+const stepAnnotate = document.getElementById('step-annotate');
+
+// Mode switching
+window.setMode = function(mode) {
+  currentMode = mode;
+  updateModeUI();
+};
+
+function updateModeUI() {
+  if (currentMode === 'marker') {
+    modeLabel.textContent = 'Click on the sticker in the photo';
+    modeLabel.className = 'mode-label mode-marker';
+    btnMarkSticker.classList.add('btn-active');
+    btnMarkSticker.classList.remove('btn-secondary');
+    btnAnnotate.classList.remove('btn-active');
+    btnAnnotate.classList.add('btn-secondary');
+    imageContainer.style.cursor = 'crosshair';
+  } else {
+    modeLabel.textContent = 'Click to place annotations';
+    modeLabel.className = 'mode-label mode-annotate';
+    btnAnnotate.classList.add('btn-active');
+    btnAnnotate.classList.remove('btn-secondary');
+    btnMarkSticker.classList.remove('btn-active');
+    btnMarkSticker.classList.add('btn-secondary');
+    imageContainer.style.cursor = 'crosshair';
+  }
+  // Highlight active step
+  stepMarker.classList.toggle('step-active', currentMode === 'marker');
+  stepAnnotate.classList.toggle('step-active', currentMode === 'annotate');
+}
 
 // Load panel data
 async function loadPanel() {
@@ -32,7 +68,33 @@ async function loadPanel() {
   if (panel.image_filename) {
     panelImage.src = `/uploads/${panel.image_filename}`;
     panelImage.style.display = 'block';
+    showEditorUI();
   }
+
+  // Show marker indicator if position is already set
+  showMarkerIndicator();
+}
+
+function showEditorUI() {
+  workflowSteps.style.display = '';
+  btnMarkSticker.style.display = '';
+  btnAnnotate.style.display = '';
+
+  // If marker hasn't been placed yet, start in marker mode
+  if (panel && (panel.marker_x_percent == null || panel.marker_x_percent === 0.5 && panel.marker_y_percent === 0.5)) {
+    // Check if it's truly unset (default 0.5,0.5) vs intentionally placed at center
+    // Start in marker mode to prompt user
+    setMode('marker');
+  } else {
+    setMode('annotate');
+  }
+}
+
+function showMarkerIndicator() {
+  if (!panel || panel.marker_x_percent == null) return;
+  markerIndicator.style.display = '';
+  markerIndicator.style.left = `${panel.marker_x_percent * 100}%`;
+  markerIndicator.style.top = `${panel.marker_y_percent * 100}%`;
 }
 
 // Load annotations
@@ -55,18 +117,15 @@ function renderAnnotations() {
     dot.title = ann.label;
     dot.dataset.id = ann.id;
 
-    // Label tooltip
     const label = document.createElement('span');
     label.className = 'dot-label';
     label.textContent = ann.label;
     label.style.borderColor = ann.color;
     dot.appendChild(label);
 
-    // Drag support
     dot.addEventListener('mousedown', startDrag);
     dot.addEventListener('touchstart', startDrag, { passive: false });
 
-    // Click to edit (not on drag)
     dot.addEventListener('click', (e) => {
       if (dot.dataset.dragged) {
         delete dot.dataset.dragged;
@@ -99,17 +158,33 @@ function renderTable() {
   });
 }
 
-// Click on image to add annotation
+// Click on image — either place marker or add annotation
 imageContainer.addEventListener('click', (e) => {
-  if (markerMode) return;
-  if (e.target !== panelImage && e.target !== overlay && e.target !== imageContainer) return;
+  if (e.target.closest('.annotation-dot')) return;
   const rect = panelImage.getBoundingClientRect();
   const x = (e.clientX - rect.left) / rect.width;
   const y = (e.clientY - rect.top) / rect.height;
   if (x < 0 || x > 1 || y < 0 || y > 1) return;
 
-  openNewPopup(x, y);
+  if (currentMode === 'marker') {
+    placeMarker(x, y);
+  } else {
+    openNewPopup(x, y);
+  }
 });
+
+async function placeMarker(x, y) {
+  await fetch(`/api/panels/${panelId}/marker-position`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ marker_x_percent: x, marker_y_percent: y })
+  });
+  panel.marker_x_percent = x;
+  panel.marker_y_percent = y;
+  showMarkerIndicator();
+  // Auto-switch to annotation mode after placing marker
+  setMode('annotate');
+}
 
 function openNewPopup(x, y) {
   popupTitle.textContent = 'New Annotation';
@@ -123,7 +198,7 @@ function openNewPopup(x, y) {
   annLabelInput.focus();
 }
 
-function openEditPopup(ann) {
+window.openEditPopup = function(ann) {
   popupTitle.textContent = 'Edit Annotation';
   annIdInput.value = ann.id;
   annXInput.value = ann.x_percent;
@@ -133,7 +208,7 @@ function openEditPopup(ann) {
   annColorInput.value = ann.color;
   popup.style.display = 'flex';
   annLabelInput.focus();
-}
+};
 
 window.closePopup = function() {
   popup.style.display = 'none';
@@ -176,8 +251,9 @@ window.deleteAnnotation = async function(id) {
   loadAnnotations();
 };
 
-// Drag to reposition
+// Drag to reposition annotations
 function startDrag(e) {
+  if (currentMode === 'marker') return;
   e.preventDefault();
   const dot = e.currentTarget;
   dragging = {
@@ -237,116 +313,14 @@ document.getElementById('upload-form').addEventListener('submit', async (e) => {
   const res = await fetch(`/api/panels/${panelId}/image`, { method: 'POST', body: formData });
   if (res.ok) {
     const updated = await res.json();
+    panel.image_filename = updated.image_filename;
     panelImage.src = `/uploads/${updated.image_filename}?t=${Date.now()}`;
     panelImage.style.display = 'block';
     input.value = '';
+    showEditorUI();
+    setMode('marker');
   }
 });
-
-// --- Marker placement on photo ---
-
-const markerOverlay = document.getElementById('marker-overlay');
-const markerOverlayImg = document.getElementById('marker-overlay-img');
-const toggleMarkerBtn = document.getElementById('toggle-marker-btn');
-
-window.toggleMarkerMode = function() {
-  markerMode = !markerMode;
-  if (markerMode) {
-    toggleMarkerBtn.textContent = 'Done Placing Marker';
-    toggleMarkerBtn.classList.remove('btn-secondary');
-    toggleMarkerBtn.classList.add('btn-danger');
-    showMarkerOverlay();
-  } else {
-    toggleMarkerBtn.textContent = 'Place Marker';
-    toggleMarkerBtn.classList.remove('btn-danger');
-    toggleMarkerBtn.classList.add('btn-secondary');
-    markerOverlay.style.display = 'none';
-  }
-};
-
-function showMarkerOverlay() {
-  if (!panel) return;
-  // Load marker SVG
-  markerOverlayImg.src = `/api/marker/${panel.marker_value}.svg`;
-  markerOverlay.style.display = 'block';
-  // Position at saved location or center
-  const x = panel.marker_x_percent != null ? panel.marker_x_percent : 0.5;
-  const y = panel.marker_y_percent != null ? panel.marker_y_percent : 0.5;
-  markerOverlay.style.left = `${x * 100}%`;
-  markerOverlay.style.top = `${y * 100}%`;
-}
-
-// Drag marker overlay
-markerOverlay.addEventListener('mousedown', startMarkerDrag);
-markerOverlay.addEventListener('touchstart', startMarkerDrag, { passive: false });
-
-function startMarkerDrag(e) {
-  if (!markerMode) return;
-  e.preventDefault();
-  e.stopPropagation();
-
-  const onMove = (ev) => {
-    const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
-    const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
-    const rect = panelImage.getBoundingClientRect();
-    let x = (clientX - rect.left) / rect.width;
-    let y = (clientY - rect.top) / rect.height;
-    x = Math.max(0, Math.min(1, x));
-    y = Math.max(0, Math.min(1, y));
-    markerOverlay.style.left = `${x * 100}%`;
-    markerOverlay.style.top = `${y * 100}%`;
-    markerOverlay._pos = { x, y };
-  };
-
-  const onEnd = async () => {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onEnd);
-    document.removeEventListener('touchmove', onMove);
-    document.removeEventListener('touchend', onEnd);
-
-    if (markerOverlay._pos) {
-      await fetch(`/api/panels/${panelId}/marker-position`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          marker_x_percent: markerOverlay._pos.x,
-          marker_y_percent: markerOverlay._pos.y
-        })
-      });
-      panel.marker_x_percent = markerOverlay._pos.x;
-      panel.marker_y_percent = markerOverlay._pos.y;
-    }
-  };
-
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onEnd);
-  document.addEventListener('touchmove', onMove, { passive: false });
-  document.addEventListener('touchend', onEnd);
-}
-
-// Click on image in marker mode places the marker
-const origClickHandler = imageContainer.onclick;
-imageContainer.addEventListener('click', (e) => {
-  if (!markerMode) return;
-  if (e.target === markerOverlay || markerOverlay.contains(e.target)) return;
-  const rect = panelImage.getBoundingClientRect();
-  const x = (e.clientX - rect.left) / rect.width;
-  const y = (e.clientY - rect.top) / rect.height;
-  if (x < 0 || x > 1 || y < 0 || y > 1) return;
-  e.stopPropagation();
-
-  markerOverlay.style.left = `${x * 100}%`;
-  markerOverlay.style.top = `${y * 100}%`;
-  markerOverlay._pos = { x, y };
-
-  fetch(`/api/panels/${panelId}/marker-position`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ marker_x_percent: x, marker_y_percent: y })
-  });
-  panel.marker_x_percent = x;
-  panel.marker_y_percent = y;
-}, true); // capture phase so it fires before the annotation click
 
 // Init
 loadPanel();

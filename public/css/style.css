@@ -249,25 +249,122 @@ header h1 {
   margin-bottom: 0;
 }
 
-/* Marker overlay on panel photo */
-.marker-overlay {
-  position: absolute;
-  width: 15%;
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  cursor: move;
-  z-index: 20;
-  border: 3px dashed #2563eb;
-  border-radius: 4px;
-  background: rgba(255,255,255,0.85);
-  padding: 2px;
+/* Workflow steps */
+.workflow-steps {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
-.marker-overlay img {
-  width: 100%;
-  height: 100%;
-  border-radius: 2px;
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #fff;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.85em;
+  color: #6b7280;
+  transition: all 0.2s;
+}
+
+.step.step-active {
+  border-color: #2563eb;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  font-weight: 700;
+  font-size: 0.85em;
+}
+
+.step-active .step-num {
+  background: #2563eb;
+  color: #fff;
+}
+
+/* Mode label */
+.mode-label {
+  font-size: 0.9em;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.mode-marker {
+  color: #9333ea;
+  background: #f3e8ff;
+}
+
+.mode-annotate {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.btn-active {
+  background: #2563eb;
+}
+
+/* Marker indicator on photo */
+.marker-indicator {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 15;
   pointer-events: none;
+}
+
+.marker-crosshair {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #9333ea;
+  border-radius: 50%;
+  position: relative;
+}
+
+.marker-crosshair::before,
+.marker-crosshair::after {
+  content: '';
+  position: absolute;
+  background: #9333ea;
+}
+
+.marker-crosshair::before {
+  width: 2px;
+  height: 20px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.marker-crosshair::after {
+  width: 20px;
+  height: 2px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.marker-tag {
+  display: block;
+  text-align: center;
+  font-size: 0.6em;
+  font-weight: 700;
+  color: #fff;
+  background: #9333ea;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-top: 2px;
+  letter-spacing: 0.5px;
 }
 
 /* Popup */
