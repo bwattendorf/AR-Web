@@ -46,9 +46,10 @@ router.post('/panels', upload.single('image'), (req, res) => {
   if (!name) return res.status(400).json({ error: 'Name is required' });
 
   // Find next available marker value (0-63)
+  // Start from 7 so the inner grid always has visible black/white contrast
   const used = db.prepare('SELECT marker_value FROM panels ORDER BY marker_value').all()
     .map(r => r.marker_value);
-  let marker = 0;
+  let marker = 7;
   while (used.includes(marker) && marker <= 63) marker++;
   if (marker > 63) return res.status(400).json({ error: 'All 64 marker slots are in use' });
 
@@ -200,33 +201,70 @@ router.get('/panels/:id/qrcode', async (req, res) => {
 // --- Barcode Marker SVG Generation ---
 
 // Generate a 3x3 barcode marker SVG for a given value (0-63)
+// ARToolKit 3x3 matrix: the value is the minimum across 4 rotations
+// of the 9-bit number read from the inner 3x3 grid (row by row, MSB first).
+// We need to find the 9-bit pattern whose minimum rotation equals the requested value.
 router.get('/marker/:value.svg', (req, res) => {
   const value = parseInt(req.params.value, 10);
   if (isNaN(value) || value < 0 || value > 63) {
     return res.status(400).json({ error: 'Marker value must be 0-63' });
   }
 
-  // 3x3 matrix: 6 bits → 9 cells but only inner 3x3 matters
-  // The marker is a 5x5 grid: outer ring is black border, inner 3x3 is the pattern
-  const bits = [];
-  for (let i = 5; i >= 0; i--) {
-    bits.push((value >> i) & 1);
+  // Rotate a 3x3 grid 90 degrees clockwise and read as 9-bit number
+  function gridToNum(g) {
+    let n = 0;
+    for (let r = 0; r < 3; r++)
+      for (let c = 0; c < 3; c++)
+        n = (n << 1) | g[r][c];
+    return n;
   }
 
-  // Map 6 bits to 3x3 grid (row by row, top-left to bottom-right)
-  // Pad with 0s for the remaining 3 cells
-  const grid = [
-    [bits[0], bits[1], bits[2]],
-    [bits[3], bits[4], bits[5]],
-    [0, 0, 0] // parity/padding row
-  ];
+  function rotate90(g) {
+    return [
+      [g[2][0], g[1][0], g[0][0]],
+      [g[2][1], g[1][1], g[0][1]],
+      [g[2][2], g[1][2], g[0][2]]
+    ];
+  }
+
+  function minRotation(g) {
+    let min = gridToNum(g);
+    let r = g;
+    for (let i = 0; i < 3; i++) {
+      r = rotate90(r);
+      min = Math.min(min, gridToNum(r));
+    }
+    return min;
+  }
+
+  // Find the 9-bit pattern whose minimum rotation equals the requested value
+  let grid = null;
+  for (let bits = 0; bits < 512; bits++) {
+    const g = [
+      [(bits >> 8) & 1, (bits >> 7) & 1, (bits >> 6) & 1],
+      [(bits >> 5) & 1, (bits >> 4) & 1, (bits >> 3) & 1],
+      [(bits >> 2) & 1, (bits >> 1) & 1, bits & 1]
+    ];
+    if (minRotation(g) === value) {
+      grid = g;
+      break;
+    }
+  }
+
+  if (!grid) {
+    // Fallback: encode value as 6 bits in first two rows
+    grid = [
+      [(value >> 5) & 1, (value >> 4) & 1, (value >> 3) & 1],
+      [(value >> 2) & 1, (value >> 1) & 1, value & 1],
+      [0, 0, 0]
+    ];
+  }
 
   // Build SVG: 5x5 grid (black border + 3x3 inner)
   const cellSize = 50;
   const totalSize = cellSize * 5;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalSize} ${totalSize}" width="${totalSize}" height="${totalSize}">`;
-  // White background
   svg += `<rect x="0" y="0" width="${totalSize}" height="${totalSize}" fill="white"/>`;
 
   // Black border (outer ring)
@@ -238,7 +276,7 @@ router.get('/marker/:value.svg', (req, res) => {
     }
   }
 
-  // Inner 3x3 pattern
+  // Inner 3x3 pattern: 1 = white cell, 0 = black cell
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 3; c++) {
       const fill = grid[r][c] === 1 ? 'white' : 'black';
