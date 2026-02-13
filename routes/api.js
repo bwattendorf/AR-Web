@@ -196,6 +196,7 @@ router.get('/panels/:id/qrcode', async (req, res) => {
     const qrDataUrl = await QRCode.toDataURL(viewUrl, {
       width: 300,
       margin: 2,
+      errorCorrectionLevel: 'H',
       color: { dark: '#000000', light: '#ffffff' }
     });
     res.json({ url: viewUrl, qr: qrDataUrl });
@@ -210,7 +211,7 @@ router.get('/panels/:id/qrcode', async (req, res) => {
 function getQRGrid(panelId) {
   const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
   const viewUrl = `${baseUrl}/view/${panelId}`;
-  const qr = QRCode.create(viewUrl, { errorCorrectionLevel: 'M' });
+  const qr = QRCode.create(viewUrl, { errorCorrectionLevel: 'H' });
   const size = qr.modules.size;
   const grid = [];
   for (let y = 0; y < size; y++) {
@@ -289,37 +290,94 @@ router.get('/panels/:id/marker.patt', (req, res) => {
   res.send(patt);
 });
 
-// Generate an SVG of the QR code inside a thick black border (pattern marker format)
-// This is what gets printed — the black border is what AR.js detects
+// Convert marker_value (0-63) to a 3x3 binary grid for ARToolKit barcode marker
+// marker_value is used directly as a 9-bit pattern, row-by-row
+// 1 = white cell, 0 = black cell (ARToolKit convention)
+function markerValueToGrid(value) {
+  // Only 6 bits used for 3x3 (values 0-63), but we read 9 bits row-by-row
+  // The marker_value IS the minimum rotation reading, use directly as bit pattern
+  const grid = [];
+  for (let row = 0; row < 3; row++) {
+    const r = [];
+    for (let col = 0; col < 3; col++) {
+      const bitIndex = 8 - (row * 3 + col); // bit8 is top-left
+      r.push((value >> bitIndex) & 1);
+    }
+    grid.push(r);
+  }
+  return grid;
+}
+
+// Generate an SVG of the QR code with embedded barcode marker in center
+// The QR code uses H-level error correction (30%) to survive the center replacement
+// The barcode marker in center is what AR.js detects for 3D overlay
 router.get('/panels/:id/marker.svg', (req, res) => {
   const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
   if (!panel) return res.status(404).json({ error: 'Panel not found' });
 
   const { grid, size } = getQRGrid(panel.id);
 
-  // Pattern marker: thick black border around the QR code
-  // Border is 50% of total width on each side, matching default patternRatio of 0.5
   const moduleSize = 8; // pixels per QR module
   const qrPixels = size * moduleSize;
-  const borderWidth = Math.round(qrPixels * 0.5);
-  const totalSize = qrPixels + borderWidth * 2;
-  const quietZone = Math.round(moduleSize * 2); // white margin outside
-  const svgSize = totalSize + quietZone * 2;
+  const quietZone = Math.round(moduleSize * 2); // white margin outside QR
+  const svgSize = qrPixels + quietZone * 2;
+
+  // Barcode marker sizing (must match patternRatio: 0.5)
+  // Inner 3x3 pattern = 50% of total barcode marker size
+  const barcodeInner = 40; // 3x3 cells, ~13px each
+  const barcodeBorder = 20; // border on each side (so total = inner + 2*border = 80)
+  const barcodeTotal = barcodeInner + barcodeBorder * 2; // 80px
+  const barcodeQuiet = moduleSize * 2; // 16px quiet zone around barcode
+  const clearSize = barcodeTotal + barcodeQuiet * 2; // ~112px total cleared area
+
+  // Center of QR code in pixel coords
+  const qrCenter = qrPixels / 2;
+  const clearStart = qrCenter - clearSize / 2;
+
+  // Which QR modules fall in the cleared center area
+  const clearModStart = Math.floor(clearStart / moduleSize);
+  const clearModEnd = Math.ceil((clearStart + clearSize) / moduleSize);
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgSize} ${svgSize}" width="${svgSize}" height="${svgSize}">`;
-  // White background (quiet zone)
+  // White background
   svg += `<rect x="0" y="0" width="${svgSize}" height="${svgSize}" fill="white"/>`;
-  // Black border
-  svg += `<rect x="${quietZone}" y="${quietZone}" width="${totalSize}" height="${totalSize}" fill="black"/>`;
-  // White inner area for QR code
-  svg += `<rect x="${quietZone + borderWidth}" y="${quietZone + borderWidth}" width="${qrPixels}" height="${qrPixels}" fill="white"/>`;
 
-  // QR modules
+  // Draw QR modules, skipping the center area
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      if (grid[y][x]) { // dark module
-        svg += `<rect x="${quietZone + borderWidth + x * moduleSize}" y="${quietZone + borderWidth + y * moduleSize}" width="${moduleSize}" height="${moduleSize}" fill="black"/>`;
+      if (x >= clearModStart && x < clearModEnd && y >= clearModStart && y < clearModEnd) {
+        continue; // skip center area
       }
+      if (grid[y][x]) { // dark module
+        svg += `<rect x="${quietZone + x * moduleSize}" y="${quietZone + y * moduleSize}" width="${moduleSize}" height="${moduleSize}" fill="black"/>`;
+      }
+    }
+  }
+
+  // Draw barcode marker in center
+  const bcX = quietZone + qrCenter - barcodeTotal / 2;
+  const bcY = quietZone + qrCenter - barcodeTotal / 2;
+
+  // White quiet zone behind barcode
+  svg += `<rect x="${bcX - barcodeQuiet}" y="${bcY - barcodeQuiet}" width="${barcodeTotal + barcodeQuiet * 2}" height="${barcodeTotal + barcodeQuiet * 2}" fill="white"/>`;
+
+  // Black border of barcode marker
+  svg += `<rect x="${bcX}" y="${bcY}" width="${barcodeTotal}" height="${barcodeTotal}" fill="black"/>`;
+
+  // White inner area of barcode marker
+  svg += `<rect x="${bcX + barcodeBorder}" y="${bcY + barcodeBorder}" width="${barcodeInner}" height="${barcodeInner}" fill="white"/>`;
+
+  // Draw 3x3 barcode pattern cells
+  const barcodeGrid = markerValueToGrid(panel.marker_value);
+  const cellSize = Math.floor(barcodeInner / 3);
+  const innerX = bcX + barcodeBorder;
+  const innerY = bcY + barcodeBorder;
+
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++) {
+      // 0 = black cell, 1 = white cell
+      const color = barcodeGrid[row][col] ? 'white' : 'black';
+      svg += `<rect x="${innerX + col * cellSize}" y="${innerY + row * cellSize}" width="${cellSize}" height="${cellSize}" fill="${color}"/>`;
     }
   }
 

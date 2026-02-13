@@ -81,7 +81,7 @@
           <img id="marker-image" src="" alt="AR Marker (scan QR to open viewer)">
         </div>
         <div class="sticker-label" id="sticker-label"></div>
-        <div class="sticker-hint">Scan the QR code with your phone camera, then point at this marker</div>
+        <div class="sticker-hint">Scan with your phone camera to open the AR viewer</div>
       </div>
       <p class="cut-label">-- cut along dashed line --</p>
     </div>
@@ -96,9 +96,9 @@
       </ol>
       <h2 style="margin-top:14px;">For Technicians</h2>
       <ol>
-        <li>Scan the QR code in the center of the marker with your phone camera</li>
+        <li>Scan the QR code sticker with your phone camera to open the viewer</li>
         <li>Allow camera access when prompted</li>
-        <li>Point your phone at the full marker (including black border)</li>
+        <li>Point your phone at the sticker — the AR tracker in the center will be detected automatically</li>
         <li>Color-coded wiring labels will appear overlaid on the panel</li>
       </ol>
     </div>
@@ -115,7 +115,7 @@
       document.getElementById('panel-desc').textContent = panel.description || '';
       document.getElementById('sticker-label').textContent = panel.name;
 
-      // Pattern marker SVG (QR code inside thick black border)
+      // QR code with embedded barcode marker in center
       const markerRes = await fetch(`/api/panels/${panelId}/marker.svg`);
       const svgText = await markerRes.text();
       document.getElementById('marker-image').src = 'data:image/svg+xml;base64,' + btoa(svgText);
