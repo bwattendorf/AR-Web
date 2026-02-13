@@ -29,4 +29,9 @@ router.get('/print/:id', (req, res) => {
   res.sendFile(path.join(viewsDir, 'print.html'));
 });
 
+// AR detection test page
+router.get('/test', (req, res) => {
+  res.sendFile(path.join(viewsDir, 'test.html'));
+});
+
 module.exports = router;

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR.js Detection Test</title>
+  <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #status {
+      position: fixed; top: 10px; left: 10px; right: 10px;
+      background: rgba(0,0,0,0.8); color: #0f0; padding: 12px;
+      font-family: monospace; font-size: 0.85em; z-index: 9999;
+      border-radius: 8px; max-height: 200px; overflow-y: auto;
+    }
+    #status .found { color: #0f0; font-weight: bold; }
+    #status .lost { color: #f80; }
+    #status .info { color: #0ff; }
+  </style>
+</head>
+<body>
+  <div id="status">
+    <div class="info">AR.js Detection Test - Point camera at markers</div>
+    <div class="info">Test 1: Hiro marker (default AR.js marker)</div>
+    <div class="info">Test 2: Barcode markers 0-63 (3x3 matrix)</div>
+    <div id="log"></div>
+  </div>
+
+  <a-scene
+    embedded
+    arjs="sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: true;"
+    renderer="logarithmicDepthBuffer: true;"
+    vr-mode-ui="enabled: false"
+  >
+    <!-- Test 1: Hiro marker (the default AR.js test marker) -->
+    <a-marker preset="hiro" id="hiro-marker">
+      <a-box position="0 0.5 0" material="color: green;" scale="0.5 0.5 0.5"></a-box>
+      <a-text value="HIRO OK" position="0 1.2 0" align="center" color="green" width="2"></a-text>
+    </a-marker>
+
+    <!-- Test 2: Barcode markers - register all values 0-63 -->
+    <a-marker type="barcode" value="0" id="bc-0"><a-text value="BC 0" position="0 0.5 0" align="center" color="red" width="2"></a-text></a-marker>
+    <a-marker type="barcode" value="7" id="bc-7"><a-text value="BC 7" position="0 0.5 0" align="center" color="red" width="2"></a-text></a-marker>
+    <a-marker type="barcode" value="21" id="bc-21"><a-text value="BC 21" position="0 0.5 0" align="center" color="yellow" width="2"></a-text></a-marker>
+    <a-marker type="barcode" value="42" id="bc-42"><a-text value="BC 42" position="0 0.5 0" align="center" color="cyan" width="2"></a-text></a-marker>
+    <a-marker type="barcode" value="45" id="bc-45"><a-text value="BC 45" position="0 0.5 0" align="center" color="magenta" width="2"></a-text></a-marker>
+    <a-marker type="barcode" value="55" id="bc-55"><a-text value="BC 55" position="0 0.5 0" align="center" color="orange" width="2"></a-text></a-marker>
+    <a-marker type="barcode" value="63" id="bc-63"><a-text value="BC 63" position="0 0.5 0" align="center" color="lime" width="2"></a-text></a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    const logEl = document.getElementById('log');
+    function log(msg, cls) {
+      const d = document.createElement('div');
+      d.className = cls || '';
+      d.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
+      logEl.appendChild(d);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // Hiro marker events
+    document.getElementById('hiro-marker').addEventListener('markerFound', () => log('HIRO marker FOUND!', 'found'));
+    document.getElementById('hiro-marker').addEventListener('markerLost', () => log('Hiro marker lost', 'lost'));
+
+    // Barcode marker events
+    ['0','7','21','42','45','55','63'].forEach(v => {
+      const el = document.getElementById('bc-' + v);
+      if (el) {
+        el.addEventListener('markerFound', () => log('BARCODE ' + v + ' FOUND!', 'found'));
+        el.addEventListener('markerLost', () => log('Barcode ' + v + ' lost', 'lost'));
+      }
+    });
+
+    log('Camera starting...', 'info');
+  </script>
+</body>
+</html>
