@@ -55,6 +55,16 @@
       <p class="url-text">Place this marker next to the panel</p>
     </div>
 
+    <div class="section placement-guide" id="placement-section" style="display:none;">
+      <h2>3. Marker Placement Guide</h2>
+      <div style="position:relative;display:inline-block;max-width:500px;">
+        <img id="panel-photo" src="" alt="Panel" style="max-width:100%;border-radius:8px;">
+        <img id="placement-marker" src="" alt="Marker position"
+          style="position:absolute;width:15%;border:2px dashed #2563eb;background:rgba(255,255,255,0.85);padding:2px;transform:translate(-50%,-50%);">
+      </div>
+      <p class="url-text">Place the printed marker at the position shown above</p>
+    </div>
+
     <div class="instructions">
       <h2>Instructions</h2>
       <ol>
@@ -84,8 +94,23 @@
       document.getElementById('qr-image').src = qrData.qr;
       document.getElementById('view-url').textContent = qrData.url;
 
-      // Load marker SVG
-      document.getElementById('marker-image').src = `/api/marker/${panel.marker_value}.svg`;
+      // Load marker SVG as data URI for reliable rendering
+      const markerRes = await fetch(`/api/marker/${panel.marker_value}.svg`);
+      const svgText = await markerRes.text();
+      const markerDataUri = 'data:image/svg+xml;base64,' + btoa(svgText);
+      document.getElementById('marker-image').src = markerDataUri;
+
+      // Show placement guide if panel has a photo
+      if (panel.image_filename) {
+        document.getElementById('placement-section').style.display = '';
+        document.getElementById('panel-photo').src = `/uploads/${panel.image_filename}`;
+        const pm = document.getElementById('placement-marker');
+        pm.src = markerDataUri;
+        const mx = panel.marker_x_percent != null ? panel.marker_x_percent : 0.5;
+        const my = panel.marker_y_percent != null ? panel.marker_y_percent : 0.5;
+        pm.style.left = `${mx * 100}%`;
+        pm.style.top = `${my * 100}%`;
+      }
     }
 
     load();

@@ -28,10 +28,16 @@
     </section>
 
     <section id="editor-section">
-      <p class="hint">Click on the image to add an annotation. Drag existing dots to reposition.</p>
+      <div class="editor-toolbar">
+        <p class="hint">Click on the image to add an annotation. Drag existing dots to reposition.</p>
+        <button id="toggle-marker-btn" class="btn btn-small btn-secondary" onclick="toggleMarkerMode()">Place Marker</button>
+      </div>
       <div id="image-container" class="image-container">
         <img id="panel-image" src="" alt="Panel" style="display:none;">
         <div id="annotations-overlay" class="annotations-overlay"></div>
+        <div id="marker-overlay" class="marker-overlay" style="display:none;">
+          <img src="" id="marker-overlay-img" alt="AR Marker" draggable="false">
+        </div>
       </div>
     </section>
 

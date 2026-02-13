@@ -99,6 +99,23 @@ router.post('/panels/:id/image', upload.single('image'), (req, res) => {
   res.json(updated);
 });
 
+// Update marker position on the panel photo
+router.put('/panels/:id/marker-position', (req, res) => {
+  const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
+  if (!panel) return res.status(404).json({ error: 'Panel not found' });
+
+  const { marker_x_percent, marker_y_percent } = req.body;
+  if (marker_x_percent == null || marker_y_percent == null) {
+    return res.status(400).json({ error: 'marker_x_percent and marker_y_percent are required' });
+  }
+
+  db.prepare('UPDATE panels SET marker_x_percent = ?, marker_y_percent = ? WHERE id = ?')
+    .run(marker_x_percent, marker_y_percent, panel.id);
+
+  const updated = db.prepare('SELECT * FROM panels WHERE id = ?').get(panel.id);
+  res.json(updated);
+});
+
 // --- Annotations CRUD ---
 
 // Get annotations for a panel

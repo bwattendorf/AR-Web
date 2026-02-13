@@ -21,6 +21,8 @@ db.exec(`
     description TEXT DEFAULT '',
     image_filename TEXT,
     marker_value INTEGER UNIQUE,
+    marker_x_percent REAL DEFAULT 0.5,
+    marker_y_percent REAL DEFAULT 0.5,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -35,5 +37,12 @@ db.exec(`
     FOREIGN KEY (panel_id) REFERENCES panels(id) ON DELETE CASCADE
   );
 `);
+
+// Migration: add marker position columns if missing
+const cols = db.prepare("PRAGMA table_info(panels)").all().map(c => c.name);
+if (!cols.includes('marker_x_percent')) {
+  db.exec("ALTER TABLE panels ADD COLUMN marker_x_percent REAL DEFAULT 0.5");
+  db.exec("ALTER TABLE panels ADD COLUMN marker_y_percent REAL DEFAULT 0.5");
+}
 
 module.exports = db;
