@@ -413,4 +413,44 @@ router.get('/panels/:id/marker.svg', (req, res) => {
   res.send(svg);
 });
 
+// Generate a standalone barcode marker SVG (no QR code) for testing
+router.get('/panels/:id/barcode.svg', (req, res) => {
+  const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
+  if (!panel) return res.status(404).json({ error: 'Panel not found' });
+
+  const markerSize = 400; // large for easy detection
+  const borderRatio = 0.25; // border is 25% on each side, inner pattern is 50%
+  const border = markerSize * borderRatio;
+  const inner = markerSize - border * 2; // 200px
+  const cellSize = inner / 4;
+  const margin = 40; // white quiet zone
+  const totalSize = markerSize + margin * 2;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalSize} ${totalSize}" width="${totalSize}" height="${totalSize}">`;
+  svg += `<rect x="0" y="0" width="${totalSize}" height="${totalSize}" fill="white"/>`;
+
+  // Black border square
+  svg += `<rect x="${margin}" y="${margin}" width="${markerSize}" height="${markerSize}" fill="black"/>`;
+
+  // White inner area
+  svg += `<rect x="${margin + border}" y="${margin + border}" width="${inner}" height="${inner}" fill="white"/>`;
+
+  // Draw 4x4 pattern
+  const barcodeGrid = markerValueToGrid(panel.marker_value);
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      const color = barcodeGrid[row][col] ? 'white' : 'black';
+      svg += `<rect x="${margin + border + col * cellSize}" y="${margin + border + row * cellSize}" width="${cellSize}" height="${cellSize}" fill="${color}"/>`;
+    }
+  }
+
+  // Label below
+  svg += `<text x="${totalSize / 2}" y="${totalSize - 5}" text-anchor="middle" font-family="Arial" font-size="14" fill="#666">Marker ${panel.marker_value} (4x4_BCH_13_5_5)</text>`;
+
+  svg += '</svg>';
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.send(svg);
+});
+
 module.exports = router;
