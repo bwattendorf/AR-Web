@@ -18,10 +18,6 @@ async function init() {
     panelNameEl.textContent = panel.name;
     log(`Panel: ${panel.name}, marker: ${panel.marker_value}`);
 
-    if (panel.marker_value > 31) {
-      log('WARNING: marker_value ' + panel.marker_value + ' is out of range for 4x4_BCH_13_5_5 (0-31)!');
-    }
-
     // Marker position in the photo
     const markerX = panel.marker_x_percent != null ? panel.marker_x_percent : 0.5;
     const markerY = panel.marker_y_percent != null ? panel.marker_y_percent : 0.5;
@@ -31,127 +27,85 @@ async function init() {
     const annotations = await annRes.json();
     log(`Loaded ${annotations.length} annotations`);
 
-    // Build A-Frame scene dynamically so marker is correct from the start
     loadingText.textContent = 'Starting camera...';
 
-    const scene = document.createElement('a-scene');
-    scene.setAttribute('embedded', '');
-    scene.setAttribute('arjs', `sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 4x4_BCH_13_5_5; debugUIEnabled: true;`);
-    scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; antialias: true;');
-    scene.setAttribute('vr-mode-ui', 'enabled: false');
-
-    // Create barcode marker using the panel's marker_value
-    const marker = document.createElement('a-marker');
-    marker.setAttribute('type', 'barcode');
-    marker.setAttribute('value', String(panel.marker_value));
-    marker.setAttribute('smooth', 'true');
-    marker.setAttribute('smoothCount', '10');
-    marker.setAttribute('smoothTolerance', '0.1');
-    marker.setAttribute('smoothThreshold', '15');
-
-    log(`Created a-marker type=barcode value=${panel.marker_value}`);
-    log(`AR.js config: detectionMode=mono_and_matrix, matrixCodeType=4x4_BCH_13_5_5`);
-
-    // Listen for marker found/lost events
-    marker.addEventListener('markerFound', () => {
-      log('Marker FOUND! value=' + panel.marker_value);
-      document.getElementById('info-bar').style.background = 'rgba(0,128,0,0.7)';
-    });
-    marker.addEventListener('markerLost', () => {
-      log('Marker lost');
-      document.getElementById('info-bar').style.background = 'rgba(0,0,0,0.7)';
-    });
-
-    // Always add a bright test cube so we can verify marker detection is working
-    const testBox = document.createElement('a-box');
-    testBox.setAttribute('position', '0 0.5 0');
-    testBox.setAttribute('color', '#FF0000');
-    testBox.setAttribute('scale', '0.5 0.5 0.5');
-    testBox.setAttribute('opacity', '0.8');
-    marker.appendChild(testBox);
-    log('Added red test cube on marker');
-
-    // Add annotation entities relative to marker position
+    // Build scene as HTML string matching official AR.js examples exactly
+    const markerVal = panel.marker_value;
     const scale = 2.5;
 
+    // Build annotation entities HTML
+    let annotationHTML = '';
     annotations.forEach((ann, index) => {
       const dx = ann.x_percent - markerX;
       const dy = ann.y_percent - markerY;
+      const x = (dx * scale).toFixed(3);
+      const z = (dy * scale).toFixed(3);
+      const y = (0.3 + index * 0.05).toFixed(3);
+      const bgW = Math.max(0.6, ann.label.length * 0.06 + 0.15).toFixed(2);
 
-      const x = dx * scale;
-      const z = dy * scale;
-      const y = 0.3 + (index * 0.05);
+      annotationHTML += `
+        <a-entity position="${x} ${y} ${z}">
+          <a-plane width="${bgW}" height="0.18" color="#000" opacity="0.7" position="0 0 0.001"></a-plane>
+          <a-text value="${ann.label}" color="${ann.color}" align="center" width="1.5" position="0 0 0.002"></a-text>
+          <a-entity geometry="primitive: cylinder; radius: 0.008; height: ${y}" material="color: ${ann.color}; opacity: 0.6" position="0 ${(-y / 2).toFixed(3)} 0"></a-entity>
+          <a-sphere radius="0.025" color="${ann.color}" position="0 ${(-y).toFixed(3)} 0"></a-sphere>
+        </a-entity>
+      `;
 
-      const entity = document.createElement('a-entity');
-      entity.setAttribute('position', `${x} ${y} ${z}`);
-
-      // Background plane
-      const bg = document.createElement('a-plane');
-      bg.setAttribute('width', Math.max(0.6, ann.label.length * 0.06 + 0.15));
-      bg.setAttribute('height', '0.18');
-      bg.setAttribute('color', '#000000');
-      bg.setAttribute('opacity', '0.7');
-      bg.setAttribute('position', '0 0 0.001');
-
-      // Text label
-      const text = document.createElement('a-text');
-      text.setAttribute('value', ann.label);
-      text.setAttribute('color', ann.color);
-      text.setAttribute('align', 'center');
-      text.setAttribute('width', '1.5');
-      text.setAttribute('position', '0 0 0.002');
-
-      // Connecting line
-      const line = document.createElement('a-entity');
-      line.setAttribute('geometry', `primitive: cylinder; radius: 0.008; height: ${y}`);
-      line.setAttribute('material', `color: ${ann.color}; opacity: 0.6`);
-      line.setAttribute('position', `0 ${-y / 2} 0`);
-
-      // Base dot
-      const dot = document.createElement('a-sphere');
-      dot.setAttribute('radius', '0.025');
-      dot.setAttribute('color', ann.color);
-      dot.setAttribute('position', `0 ${-y} 0`);
-
-      entity.appendChild(bg);
-      entity.appendChild(text);
-      entity.appendChild(line);
-      entity.appendChild(dot);
-      marker.appendChild(entity);
-
-      log(`Annotation "${ann.label}" at (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+      log(`Annotation "${ann.label}" at (${x}, ${y}, ${z})`);
     });
 
-    scene.appendChild(marker);
+    // Insert scene as HTML (more reliable than dynamic createElement for A-Frame)
+    sceneContainer.innerHTML = `
+      <a-scene
+        embedded
+        arjs="sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 4x4_BCH_13_5_5; debugUIEnabled: true;"
+        renderer="precision: mediump; antialias: true;"
+        vr-mode-ui="enabled: false"
+      >
+        <a-marker
+          type="barcode"
+          value="${markerVal}"
+          smooth="true"
+          smoothCount="5"
+          smoothTolerance="0.05"
+          smoothThreshold="5"
+        >
+          <!-- Test cube - should always be visible when marker detected -->
+          <a-box position="0 0.5 0" color="#FF0000" scale="0.5 0.5 0.5"></a-box>
 
-    // Also listen for ANY barcode detection at the scene level
-    scene.addEventListener('markerFound', (e) => {
-      const el = e.target || e.detail;
-      log('Scene-level markerFound event');
-    });
+          <!-- Annotations -->
+          ${annotationHTML}
+        </a-marker>
 
-    // Camera
-    const cam = document.createElement('a-entity');
-    cam.setAttribute('camera', '');
-    scene.appendChild(cam);
+        <a-entity camera></a-entity>
+      </a-scene>
+    `;
 
-    // Add scene to DOM
-    sceneContainer.appendChild(scene);
+    log(`Scene HTML injected, marker value=${markerVal}`);
 
-    log('Scene created, waiting for camera...');
+    // Wait for scene to initialize
+    const scene = sceneContainer.querySelector('a-scene');
+    if (scene) {
+      const marker = scene.querySelector('a-marker');
 
-    // Hide loading overlay once scene is running
-    scene.addEventListener('loaded', () => {
-      log('Scene loaded');
-      setTimeout(() => {
-        loadingOverlay.classList.add('hidden');
-      }, 1500);
-    });
+      marker.addEventListener('markerFound', () => {
+        log('MARKER FOUND! value=' + markerVal);
+        document.getElementById('info-bar').style.background = 'rgba(0,128,0,0.7)';
+      });
+      marker.addEventListener('markerLost', () => {
+        log('Marker lost');
+        document.getElementById('info-bar').style.background = 'rgba(0,0,0,0.7)';
+      });
 
-    // Fallback: hide overlay after 5s regardless
-    setTimeout(() => {
-      loadingOverlay.classList.add('hidden');
-    }, 5000);
+      scene.addEventListener('loaded', () => {
+        log('A-Frame scene loaded');
+        setTimeout(() => { loadingOverlay.classList.add('hidden'); }, 1500);
+      });
+    }
+
+    // Fallback: hide overlay after 5s
+    setTimeout(() => { loadingOverlay.classList.add('hidden'); }, 5000);
 
   } catch (err) {
     loadingText.textContent = 'Error: ' + err.message;
