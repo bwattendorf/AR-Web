@@ -18,6 +18,10 @@ async function init() {
     panelNameEl.textContent = panel.name;
     log(`Panel: ${panel.name}, marker: ${panel.marker_value}`);
 
+    if (panel.marker_value > 31) {
+      log('WARNING: marker_value ' + panel.marker_value + ' is out of range for 4x4_BCH_13_5_5 (0-31)!');
+    }
+
     // Marker position in the photo
     const markerX = panel.marker_x_percent != null ? panel.marker_x_percent : 0.5;
     const markerY = panel.marker_y_percent != null ? panel.marker_y_percent : 0.5;
@@ -39,7 +43,7 @@ async function init() {
     // Create barcode marker using the panel's marker_value
     const marker = document.createElement('a-marker');
     marker.setAttribute('type', 'barcode');
-    marker.setAttribute('value', panel.marker_value);
+    marker.setAttribute('value', String(panel.marker_value));
     marker.setAttribute('smooth', 'true');
     marker.setAttribute('smoothCount', '10');
     marker.setAttribute('smoothTolerance', '0.1');
@@ -50,13 +54,22 @@ async function init() {
 
     // Listen for marker found/lost events
     marker.addEventListener('markerFound', () => {
-      log('Marker FOUND!');
+      log('Marker FOUND! value=' + panel.marker_value);
       document.getElementById('info-bar').style.background = 'rgba(0,128,0,0.7)';
     });
     marker.addEventListener('markerLost', () => {
       log('Marker lost');
       document.getElementById('info-bar').style.background = 'rgba(0,0,0,0.7)';
     });
+
+    // Always add a bright test cube so we can verify marker detection is working
+    const testBox = document.createElement('a-box');
+    testBox.setAttribute('position', '0 0.5 0');
+    testBox.setAttribute('color', '#FF0000');
+    testBox.setAttribute('scale', '0.5 0.5 0.5');
+    testBox.setAttribute('opacity', '0.8');
+    marker.appendChild(testBox);
+    log('Added red test cube on marker');
 
     // Add annotation entities relative to marker position
     const scale = 2.5;
@@ -110,6 +123,12 @@ async function init() {
     });
 
     scene.appendChild(marker);
+
+    // Also listen for ANY barcode detection at the scene level
+    scene.addEventListener('markerFound', (e) => {
+      const el = e.target || e.detail;
+      log('Scene-level markerFound event');
+    });
 
     // Camera
     const cam = document.createElement('a-entity');
