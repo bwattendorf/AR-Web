@@ -32,7 +32,7 @@ async function init() {
 
     const scene = document.createElement('a-scene');
     scene.setAttribute('embedded', '');
-    scene.setAttribute('arjs', `sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: true;`);
+    scene.setAttribute('arjs', `sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 4x4_BCH_13_5_5; debugUIEnabled: true;`);
     scene.setAttribute('renderer', 'logarithmicDepthBuffer: true; antialias: true;');
     scene.setAttribute('vr-mode-ui', 'enabled: false');
 
@@ -46,7 +46,7 @@ async function init() {
     marker.setAttribute('smoothThreshold', '15');
 
     log(`Created a-marker type=barcode value=${panel.marker_value}`);
-    log(`AR.js config: detectionMode=mono_and_matrix, matrixCodeType=3x3`);
+    log(`AR.js config: detectionMode=mono_and_matrix, matrixCodeType=4x4_BCH_13_5_5`);
 
     // Listen for marker found/lost events
     marker.addEventListener('markerFound', () => {

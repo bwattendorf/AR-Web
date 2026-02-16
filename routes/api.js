@@ -45,19 +45,19 @@ router.post('/panels', upload.single('image'), (req, res) => {
   const { name, description } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
 
-  // Find next available marker value (0-63)
-  // Use values with good visual contrast for reliable AR detection.
-  // These are sorted by how many white inner cells they have (more = easier to detect).
-  const preferredMarkers = [63,55,59,61,62,45,54,27,30,23,46,51,57,58,39,43,53,60,21,42,15,47,29,30,31];
+  // Find next available marker value (0-31) for 4x4_BCH_13_5_5 markers
+  // BCH error correction provides Hamming distance 5 for reliable detection.
+  // Prefer markers with more white cells for visual contrast.
+  const preferredMarkers = [31,30,29,27,23,15,28,26,25,22,21,14,13,24,20,19,11,12,18,17,10,9,7,16,8,6,5,3,4,2,1,0];
   const used = db.prepare('SELECT marker_value FROM panels ORDER BY marker_value').all()
     .map(r => r.marker_value);
   let marker = preferredMarkers.find(m => !used.includes(m));
   if (marker == null) {
     // Fallback: find any available value
     marker = 0;
-    while (used.includes(marker) && marker <= 63) marker++;
+    while (used.includes(marker) && marker <= 31) marker++;
   }
-  if (marker > 63) return res.status(400).json({ error: 'All 64 marker slots are in use' });
+  if (marker > 31) return res.status(400).json({ error: 'All 32 marker slots are in use' });
 
   const imageFilename = req.file ? req.file.filename : null;
 
@@ -290,20 +290,45 @@ router.get('/panels/:id/marker.patt', (req, res) => {
   res.send(patt);
 });
 
-// Convert marker_value (0-63) to a 3x3 binary grid for ARToolKit barcode marker
-// marker_value is used directly as a 9-bit pattern, row-by-row
+// BCH(13,5,5) codewords for 4x4_BCH_13_5_5 barcode markers (IDs 0-31)
+// Generator polynomial: g(x) = x^8 + x^7 + x^6 + x^4 + 1 (0x1D1)
+// Each 13-bit codeword encodes 5 data bits with BCH error correction (Hamming distance 5)
+const BCH_13_5_5 = [
+  0x0000, 0x01D1, 0x0273, 0x03A2, 0x04E6, 0x0537, 0x0695, 0x0744,  // IDs 0-7
+  0x081D, 0x09CC, 0x0A6E, 0x0BBF, 0x0CFB, 0x0D2A, 0x0E88, 0x0F59,  // IDs 8-15
+  0x103A, 0x11EB, 0x1249, 0x1398, 0x14DC, 0x150D, 0x16AF, 0x177E,  // IDs 16-23
+  0x1827, 0x19F6, 0x1A54, 0x1B85, 0x1CC1, 0x1D10, 0x1EB2, 0x1F63   // IDs 24-31
+];
+
+// Convert marker_value (0-31) to a 4x4 binary grid for ARToolKit barcode marker
+// The 4x4 grid has 16 cells: 3 corners are orientation markers, 13 carry the BCH codeword
+// Layout: top-left=BLACK, bottom-left=BLACK, bottom-right=WHITE (orientation)
+// Remaining 13 cells carry codeword bits MSB-first, row by row
 // 1 = white cell, 0 = black cell (ARToolKit convention)
 function markerValueToGrid(value) {
-  // Only 6 bits used for 3x3 (values 0-63), but we read 9 bits row-by-row
-  // The marker_value IS the minimum rotation reading, use directly as bit pattern
-  const grid = [];
-  for (let row = 0; row < 3; row++) {
-    const r = [];
-    for (let col = 0; col < 3; col++) {
-      const bitIndex = 8 - (row * 3 + col); // bit8 is top-left
-      r.push((value >> bitIndex) & 1);
+  const cw = BCH_13_5_5[value] || 0;
+  // Map 13-bit codeword to 4x4 grid with 3 orientation corners
+  // Grid positions (row, col): 16 cells total
+  // Orientation corners: (0,0)=0, (3,0)=0, (3,3)=1
+  // Codeword bits fill remaining 13 cells, row by row, MSB first
+  const grid = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+
+  // Orientation corners
+  grid[0][0] = 0; // top-left: black
+  grid[3][0] = 0; // bottom-left: black
+  grid[3][3] = 1; // bottom-right: white
+
+  // Fill the 13 codeword positions (row-major, skipping the 3 orientation corners)
+  // Codeword bit 1 = dark cell = draw black (grid 0), bit 0 = light cell = draw white (grid 1)
+  // Invert because our SVG convention is: grid 1 = white, grid 0 = black
+  let bitPos = 12; // MSB first
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      // Skip orientation corners
+      if ((row === 0 && col === 0) || (row === 3 && col === 0) || (row === 3 && col === 3)) continue;
+      grid[row][col] = 1 - ((cw >> bitPos) & 1);
+      bitPos--;
     }
-    grid.push(r);
   }
   return grid;
 }
@@ -323,8 +348,8 @@ router.get('/panels/:id/marker.svg', (req, res) => {
   const svgSize = qrPixels + quietZone * 2;
 
   // Barcode marker sizing (must match patternRatio: 0.5)
-  // Inner 3x3 pattern = 50% of total barcode marker size
-  const barcodeInner = 48; // 3x3 cells, 16px each
+  // Inner 4x4 pattern = 50% of total barcode marker size
+  const barcodeInner = 48; // 4x4 cells, 12px each
   const barcodeBorder = 24; // border on each side (so total = inner + 2*border = 96)
   const barcodeTotal = barcodeInner + barcodeBorder * 2; // 96px
   const barcodeQuiet = moduleSize * 2; // 16px quiet zone around barcode
@@ -368,14 +393,14 @@ router.get('/panels/:id/marker.svg', (req, res) => {
   // White inner area of barcode marker
   svg += `<rect x="${bcX + barcodeBorder}" y="${bcY + barcodeBorder}" width="${barcodeInner}" height="${barcodeInner}" fill="white"/>`;
 
-  // Draw 3x3 barcode pattern cells
+  // Draw 4x4 barcode pattern cells
   const barcodeGrid = markerValueToGrid(panel.marker_value);
-  const cellSize = Math.floor(barcodeInner / 3);
+  const cellSize = Math.floor(barcodeInner / 4);
   const innerX = bcX + barcodeBorder;
   const innerY = bcY + barcodeBorder;
 
-  for (let row = 0; row < 3; row++) {
-    for (let col = 0; col < 3; col++) {
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
       // 0 = black cell, 1 = white cell
       const color = barcodeGrid[row][col] ? 'white' : 'black';
       svg += `<rect x="${innerX + col * cellSize}" y="${innerY + row * cellSize}" width="${cellSize}" height="${cellSize}" fill="${color}"/>`;
