@@ -4,6 +4,97 @@ let annotations = [];
 let dragging = null;
 let currentMode = 'annotate'; // 'marker' or 'annotate'
 
+// --- Access Control Panel annotation templates ---
+const ANNOTATION_TEMPLATES = {
+  'Terminals': {
+    color: '#2563eb',
+    items: [
+      { label: '+12V DC Power', desc: 'Positive 12V DC power input terminal' },
+      { label: '+24V DC Power', desc: 'Positive 24V DC power input terminal' },
+      { label: 'GND', desc: 'Ground / negative power terminal' },
+      { label: 'Data 0 (D0)', desc: 'Wiegand Data 0 line from card reader (green wire)' },
+      { label: 'Data 1 (D1)', desc: 'Wiegand Data 1 line from card reader (white wire)' },
+      { label: 'Door Contact', desc: 'Normally-closed door position sensor input' },
+      { label: 'REX Input', desc: 'Request to Exit sensor input' },
+      { label: 'Lock Relay', desc: 'Door lock relay output (electric strike / mag lock)' },
+      { label: 'Tamper Switch', desc: 'Enclosure tamper detection switch' },
+      { label: 'Shield Ground', desc: 'Cable shield / earth ground connection point' },
+      { label: 'RS-485 A (+)', desc: 'RS-485 communication bus positive line' },
+      { label: 'RS-485 B (-)', desc: 'RS-485 communication bus negative line' },
+      { label: 'Aux Input', desc: 'Auxiliary general-purpose input' },
+      { label: 'Aux Output', desc: 'Auxiliary general-purpose relay output' },
+      { label: 'Bell / Siren', desc: 'Alarm bell or siren output terminal' },
+    ]
+  },
+  'Components': {
+    color: '#7c3aed',
+    items: [
+      { label: 'Controller Board', desc: 'Main access control processor board' },
+      { label: 'Power Supply', desc: 'AC to DC power supply module' },
+      { label: 'Backup Battery', desc: 'Backup battery (replace every 2-3 years)' },
+      { label: 'Fuse', desc: 'Protective fuse - check rating before replacing' },
+      { label: 'Relay Module', desc: 'Door lock relay module' },
+      { label: 'Reader Interface', desc: 'Reader interface module (RIM)' },
+      { label: 'Network Port', desc: 'RJ45 Ethernet network connection' },
+      { label: 'Expansion Slot', desc: 'Slot for additional reader/input modules' },
+      { label: 'DIP Switches', desc: 'Configuration DIP switches - see manual for settings' },
+      { label: 'Reset Button', desc: 'Controller reset / factory default button' },
+    ]
+  },
+  'Status LEDs': {
+    color: '#059669',
+    items: [
+      { label: 'Power LED', desc: 'Solid green = normal power, off = no power' },
+      { label: 'Network LED', desc: 'Blinking = network active, off = no link' },
+      { label: 'Status LED', desc: 'Solid = normal operation, blinking = fault' },
+      { label: 'Tamper LED', desc: 'Lit when enclosure tamper detected' },
+      { label: 'Door Status LED', desc: 'Indicates door open/closed/locked state' },
+      { label: 'Fault LED', desc: 'Lit when system fault detected - check event log' },
+      { label: 'Comm LED', desc: 'Communication activity indicator' },
+      { label: 'Reader 1 LED', desc: 'Reader 1 connection status indicator' },
+      { label: 'Reader 2 LED', desc: 'Reader 2 connection status indicator' },
+    ]
+  },
+  'Safety': {
+    color: '#dc2626',
+    items: [
+      { label: 'AC MAINS - HIGH VOLTAGE', desc: 'DANGER: 120V/240V AC mains input - disconnect before servicing' },
+      { label: 'ESD Sensitive', desc: 'Use grounding strap when handling exposed circuit boards' },
+      { label: 'Do Not Remove Cover', desc: 'Panel cover protects energized components' },
+      { label: 'Fuse Rating', desc: 'Replace only with same type and rating fuse' },
+      { label: 'Disconnect Power First', desc: 'Turn off AC and disconnect battery before servicing' },
+      { label: 'Fire Door - Do Not Block', desc: 'Connected to fire alarm - door must remain unobstructed' },
+    ]
+  },
+  'Info': {
+    color: '#d97706',
+    items: [
+      { label: 'Model / Serial #', desc: 'Record model and serial number for service calls' },
+      { label: 'IP Address', desc: 'Controller network IP address' },
+      { label: 'Door / Zone', desc: 'Door name and access zone assignment' },
+      { label: 'Network Config', desc: 'IP, subnet, gateway, MAC address' },
+      { label: 'Firmware Version', desc: 'Current firmware version - check for updates' },
+      { label: 'Maintenance Schedule', desc: 'Next scheduled maintenance date and tasks' },
+      { label: 'Emergency Contact', desc: 'Security system support contact information' },
+      { label: 'Card Format', desc: 'Wiegand format: 26-bit / 37-bit / OSDP' },
+      { label: 'Max Cable Length', desc: 'Maximum reader cable run distance' },
+    ]
+  },
+  'Troubleshoot': {
+    color: '#0891b2',
+    items: [
+      { label: 'Check Voltage Here', desc: 'Measure voltage at this point during troubleshooting' },
+      { label: 'Test Card Here', desc: 'Present known-good test card at this reader' },
+      { label: 'Check Continuity', desc: 'Test cable continuity from this terminal to device' },
+      { label: 'Termination Resistor', desc: 'RS-485 bus termination - verify 120 ohm resistor' },
+      { label: 'Common Fault Point', desc: 'Frequent failure location - inspect connections' },
+      { label: 'LED Pattern Guide', desc: 'Refer to manual for LED blink code meanings' },
+      { label: 'Battery Test Point', desc: 'Measure backup battery voltage (replace if below 12.0V)' },
+      { label: 'Signal Test Point', desc: 'Test communication signal quality at this point' },
+    ]
+  }
+};
+
 // DOM elements
 const panelTitle = document.getElementById('panel-title');
 const panelImage = document.getElementById('panel-image');
@@ -194,7 +285,60 @@ function openNewPopup(x, y) {
   annLabelInput.value = '';
   annDescInput.value = '';
   annColorInput.value = '#ff0000';
+  showTemplatePicker(true);
+  renderTemplatePicker();
   popup.style.display = 'flex';
+}
+
+// --- Template picker ---
+const templateTabs = document.getElementById('template-tabs');
+const templateItems = document.getElementById('template-items');
+const templatePicker = document.getElementById('template-picker');
+const templateDivider = document.getElementById('template-divider');
+let activeTemplateTab = Object.keys(ANNOTATION_TEMPLATES)[0];
+
+function showTemplatePicker(show) {
+  templatePicker.style.display = show ? '' : 'none';
+  templateDivider.style.display = show ? '' : 'none';
+}
+
+function renderTemplatePicker() {
+  // Render category tabs
+  templateTabs.innerHTML = '';
+  for (const cat of Object.keys(ANNOTATION_TEMPLATES)) {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'template-tab' + (cat === activeTemplateTab ? ' active' : '');
+    tab.style.setProperty('--tab-color', ANNOTATION_TEMPLATES[cat].color);
+    tab.textContent = cat;
+    tab.addEventListener('click', () => {
+      activeTemplateTab = cat;
+      renderTemplatePicker();
+    });
+    templateTabs.appendChild(tab);
+  }
+
+  // Render items for active tab
+  const tmpl = ANNOTATION_TEMPLATES[activeTemplateTab];
+  templateItems.innerHTML = '';
+  tmpl.items.forEach(item => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'template-item';
+    btn.style.setProperty('--item-color', tmpl.color);
+    btn.innerHTML = `<span class="template-item-dot" style="background:${tmpl.color}"></span>${item.label}`;
+    btn.title = item.desc;
+    btn.addEventListener('click', () => {
+      applyTemplate(item, tmpl.color);
+    });
+    templateItems.appendChild(btn);
+  });
+}
+
+function applyTemplate(item, color) {
+  annLabelInput.value = item.label;
+  annDescInput.value = item.desc;
+  annColorInput.value = color;
   annLabelInput.focus();
 }
 
@@ -206,6 +350,7 @@ window.openEditPopup = function(ann) {
   annLabelInput.value = ann.label;
   annDescInput.value = ann.description || '';
   annColorInput.value = ann.color;
+  showTemplatePicker(false);
   popup.style.display = 'flex';
   annLabelInput.focus();
 };
