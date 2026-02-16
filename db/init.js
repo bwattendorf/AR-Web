@@ -45,4 +45,29 @@ if (!cols.includes('marker_x_percent')) {
   db.exec("ALTER TABLE panels ADD COLUMN marker_y_percent REAL DEFAULT 0.5");
 }
 
+// Migration: reassign marker values > 31 to valid 0-31 range for 4x4_BCH_13_5_5
+const outOfRange = db.prepare('SELECT id, name, marker_value FROM panels WHERE marker_value > 31 ORDER BY id').all();
+if (outOfRange.length > 0) {
+  const usedValues = new Set(
+    db.prepare('SELECT marker_value FROM panels').all().map(r => r.marker_value)
+  );
+  const updateStmt = db.prepare('UPDATE panels SET marker_value = ? WHERE id = ?');
+  const migrate = db.transaction(() => {
+    for (const panel of outOfRange) {
+      // Find next available value in 0-31
+      let newVal = 0;
+      while (usedValues.has(newVal) && newVal <= 31) newVal++;
+      if (newVal > 31) {
+        console.warn(`Migration: no free marker slot for panel "${panel.name}" (id=${panel.id}), skipping`);
+        continue;
+      }
+      console.log(`Migration: panel "${panel.name}" marker ${panel.marker_value} -> ${newVal}`);
+      usedValues.delete(panel.marker_value);
+      usedValues.add(newVal);
+      updateStmt.run(newVal, panel.id);
+    }
+  });
+  migrate();
+}
+
 module.exports = db;
