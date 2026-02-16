@@ -34,4 +34,9 @@ router.get('/test', (req, res) => {
   res.sendFile(path.join(viewsDir, 'test.html'));
 });
 
+// Standalone barcode marker test page
+router.get('/test-marker/:id', (req, res) => {
+  res.sendFile(path.join(viewsDir, 'test-marker.html'));
+});
+
 module.exports = router;
