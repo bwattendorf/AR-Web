@@ -18,6 +18,15 @@ async function init() {
     panelNameEl.textContent = panel.name;
     log(`Panel: ${panel.name}, marker: ${panel.marker_value}`);
 
+    // Check that .mind target file exists
+    const targetUrl = `/api/panels/${panelId}/target.mind`;
+    const targetCheck = await fetch(targetUrl, { method: 'HEAD' });
+    if (!targetCheck.ok) {
+      loadingText.textContent = 'AR target not compiled yet. Open the editor and click "Compile AR Target".';
+      log('ERROR: .mind target file not found');
+      return;
+    }
+
     // Marker position in the photo
     const markerX = panel.marker_x_percent != null ? panel.marker_x_percent : 0.5;
     const markerY = panel.marker_y_percent != null ? panel.marker_y_percent : 0.5;
@@ -29,72 +38,63 @@ async function init() {
 
     loadingText.textContent = 'Starting camera...';
 
-    // Build scene as HTML string matching official AR.js examples exactly
-    const markerVal = panel.marker_value;
     const scale = 2.5;
 
     // Build annotation entities HTML
+    // MindAR coordinate system: XY plane facing camera, Z toward camera
+    // Target width is normalized to 1
     let annotationHTML = '';
     annotations.forEach((ann, index) => {
-      const dx = ann.x_percent - markerX;
-      const dy = ann.y_percent - markerY;
-      const x = (dx * scale).toFixed(3);
-      const z = (dy * scale).toFixed(3);
-      const y = (0.3 + index * 0.05).toFixed(3);
+      const x = ((ann.x_percent - markerX) * scale).toFixed(3);
+      const y = (-(ann.y_percent - markerY) * scale).toFixed(3);
+      const z = (0.3 + index * 0.05).toFixed(3);
       const bgW = Math.max(0.6, ann.label.length * 0.06 + 0.15).toFixed(2);
+
+      // Stem height matches z (toward camera)
+      const stemH = parseFloat(z);
 
       annotationHTML += `
         <a-entity position="${x} ${y} ${z}">
           <a-plane width="${bgW}" height="0.18" color="#000" opacity="0.7" position="0 0 0.001"></a-plane>
           <a-text value="${ann.label}" color="${ann.color}" align="center" width="1.5" position="0 0 0.002"></a-text>
-          <a-entity geometry="primitive: cylinder; radius: 0.008; height: ${y}" material="color: ${ann.color}; opacity: 0.6" position="0 ${(-y / 2).toFixed(3)} 0"></a-entity>
-          <a-sphere radius="0.025" color="${ann.color}" position="0 ${(-y).toFixed(3)} 0"></a-sphere>
+          <a-entity geometry="primitive: cylinder; radius: 0.008; height: ${stemH}" material="color: ${ann.color}; opacity: 0.6" rotation="90 0 0" position="0 0 ${(-stemH / 2).toFixed(3)}"></a-entity>
+          <a-sphere radius="0.025" color="${ann.color}" position="0 0 ${(-stemH).toFixed(3)}"></a-sphere>
         </a-entity>
       `;
 
       log(`Annotation "${ann.label}" at (${x}, ${y}, ${z})`);
     });
 
-    // Insert scene as HTML (more reliable than dynamic createElement for A-Frame)
+    // Insert MindAR scene
     sceneContainer.innerHTML = `
       <a-scene
-        embedded
-        arjs="sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 4x4_BCH_13_5_5; debugUIEnabled: true;"
-        renderer="precision: mediump; antialias: true;"
+        mindar-image="imageTargetSrc: ${targetUrl}"
         vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false"
+        renderer="precision: mediump; antialias: true;"
       >
-        <a-marker
-          type="barcode"
-          value="${markerVal}"
-          smooth="true"
-          smoothCount="5"
-          smoothTolerance="0.05"
-          smoothThreshold="5"
-        >
-          <!-- Test cube - should always be visible when marker detected -->
-          <a-box position="0 0.5 0" color="#FF0000" scale="0.5 0.5 0.5"></a-box>
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
+        <a-entity mindar-image-target="targetIndex: 0">
           <!-- Annotations -->
           ${annotationHTML}
-        </a-marker>
-
-        <a-entity camera></a-entity>
+        </a-entity>
       </a-scene>
     `;
 
-    log(`Scene HTML injected, marker value=${markerVal}`);
+    log('Scene HTML injected (MindAR)');
 
     // Wait for scene to initialize
     const scene = sceneContainer.querySelector('a-scene');
     if (scene) {
-      const marker = scene.querySelector('a-marker');
+      const target = scene.querySelector('[mindar-image-target]');
 
-      marker.addEventListener('markerFound', () => {
-        log('MARKER FOUND! value=' + markerVal);
+      target.addEventListener('targetFound', () => {
+        log('TARGET FOUND!');
         document.getElementById('info-bar').style.background = 'rgba(0,128,0,0.7)';
       });
-      marker.addEventListener('markerLost', () => {
-        log('Marker lost');
+      target.addEventListener('targetLost', () => {
+        log('Target lost');
         document.getElementById('info-bar').style.background = 'rgba(0,0,0,0.7)';
       });
 

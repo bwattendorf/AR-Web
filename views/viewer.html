@@ -42,7 +42,7 @@
   </div>
 
   <div id="info-bar">
-    <span id="panel-name">Loading...</span> &mdash; Point camera at the barcode marker
+    <span id="panel-name">Loading...</span> &mdash; Point camera at the printed sticker
   </div>
 
   <div id="debug-log"></div>
@@ -78,9 +78,9 @@
         await loadScript('https://aframe.io/releases/1.6.0/aframe.min.js');
         log('A-Frame 1.6.0 loaded');
 
-        loadingText.textContent = 'Loading AR.js...';
-        await loadScript('https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.js');
-        log('AR.js loaded');
+        loadingText.textContent = 'Loading MindAR...';
+        await loadScript('https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js');
+        log('MindAR loaded');
 
         loadingText.textContent = 'Loading panel data...';
         window._debugLog = log;

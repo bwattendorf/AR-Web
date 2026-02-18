@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Barcode Marker Test</title>
+  <title>MindAR Target Test</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
     .container { max-width: 800px; margin: 0 auto; }
@@ -20,20 +20,23 @@
     .instructions h3 { font-size: 1em; margin-bottom: 8px; }
     .instructions ol { padding-left: 20px; }
     .instructions li { margin-bottom: 5px; }
-    .grid-display { font-family: monospace; font-size: 1.2em; line-height: 1.4; margin: 10px 0; }
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; }
+    .status-ok { background: #d1fae5; color: #065f46; }
+    .status-missing { background: #fee2e2; color: #991b1b; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Barcode Marker Detection Test</h1>
+    <h1>MindAR Image Target Test</h1>
 
     <div class="instructions">
       <h3>How to test</h3>
       <ol>
-        <li>Open this page on a <strong>computer/tablet screen</strong></li>
-        <li>Open the <strong>AR View</strong> link below on your <strong>phone</strong></li>
-        <li>Point your phone camera at the barcode marker on screen</li>
-        <li>You should see a <strong>red cube</strong> appear when the marker is detected</li>
+        <li>Make sure the AR target is <strong>compiled</strong> (check status below)</li>
+        <li>Display the sticker image on a <strong>computer/tablet screen</strong></li>
+        <li>Open the <strong>AR View</strong> link on your <strong>phone</strong></li>
+        <li>Point your phone camera at the sticker on screen</li>
+        <li>You should see <strong>annotation labels</strong> appear when the image is recognized</li>
       </ol>
     </div>
 
@@ -54,29 +57,30 @@
       if (!res.ok) { document.getElementById('panel-info').innerHTML = '<p>Panel not found</p>'; return; }
       const panel = await res.json();
 
+      // Check if .mind file exists
+      const targetCheck = await fetch(`/api/panels/${panelId}/target.mind`, { method: 'HEAD' });
+      const compiled = targetCheck.ok;
+
       document.getElementById('panel-info').innerHTML = `
         <p><strong>Panel:</strong> ${panel.name}</p>
-        <p><strong>Marker Value:</strong> ${panel.marker_value}</p>
-        <p><strong>Marker Type:</strong> 4x4_BCH_13_5_5 (0-31 range)</p>
-        <p><strong>Status:</strong> ${panel.marker_value > 31 ? '<span style="color:red">OUT OF RANGE!</span>' : '<span style="color:green">Valid</span>'}</p>
+        <p><strong>Marker Value:</strong> ${panel.marker_value} (used for sticker generation)</p>
+        <p><strong>AR Target:</strong> ${compiled
+          ? '<span class="status-badge status-ok">Compiled</span>'
+          : '<span class="status-badge status-missing">Not compiled</span> — open the editor and click "Compile AR Target"'}</p>
       `;
 
       document.getElementById('markers').innerHTML = `
         <div class="marker-card">
-          <h3>Standalone Barcode (for testing)</h3>
-          <img src="/api/panels/${panelId}/barcode.svg" width="300" height="300" alt="Barcode marker">
+          <h3>QR + Barcode Sticker (image target)</h3>
+          <img src="/api/panels/${panelId}/marker.svg" width="300" height="300" alt="Sticker">
           <p style="font-size:0.8em;color:#666;margin-top:8px;">Display this on screen, point phone at it</p>
-        </div>
-        <div class="marker-card">
-          <h3>QR + Barcode (production label)</h3>
-          <img src="/api/panels/${panelId}/marker.svg" width="300" height="300" alt="QR marker">
-          <p style="font-size:0.8em;color:#666;margin-top:8px;">QR code with barcode embedded in center</p>
         </div>
       `;
 
       const baseUrl = window.location.origin;
       document.getElementById('actions').innerHTML = `
         <a href="/view/${panelId}" class="test-btn">Open AR View</a>
+        <a href="/edit/${panelId}" class="test-btn" style="background:#7c3aed;">Open Editor</a>
         <a href="/print/${panelId}" class="test-btn" style="background:#6b7280;">Print Sheet</a>
         <a href="/admin" class="test-btn" style="background:#6b7280;">Back to Admin</a>
         <p style="font-size:0.85em;color:#666;margin-top:10px;">AR View URL: <strong>${baseUrl}/view/${panelId}</strong></p>
