@@ -14,7 +14,7 @@ app.locals.uploadsDir = uploadsDir;
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use('/public', express.static(path.join(__dirname, 'public'), { etag: false, maxAge: 0 }));
 app.use('/uploads', express.static(uploadsDir));
 
 // Routes

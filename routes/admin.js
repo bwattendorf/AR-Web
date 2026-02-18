@@ -4,6 +4,12 @@ const path = require('path');
 
 const viewsDir = path.join(__dirname, '..', 'views');
 
+// Disable caching for all HTML views
+router.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
 // Landing page
 router.get('/', (req, res) => {
   res.sendFile(path.join(viewsDir, 'index.html'));
