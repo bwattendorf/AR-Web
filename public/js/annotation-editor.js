@@ -110,15 +110,27 @@ const annLabelInput = document.getElementById('ann-label');
 const annDescInput = document.getElementById('ann-desc');
 const annColorInput = document.getElementById('ann-color');
 const annRotationInput = document.getElementById('ann-rotation');
-const annRotationValue = document.getElementById('ann-rotation-value');
 const annFontSizeInput = document.getElementById('ann-font-size');
 const annFontFamilyInput = document.getElementById('ann-font-family');
+const rotationPresets = document.querySelectorAll('.rotation-preset');
 const tbody = document.getElementById('annotations-tbody');
 
-// Live-update rotation display
-annRotationInput.addEventListener('input', () => {
-  annRotationValue.textContent = annRotationInput.value + '°';
+// Rotation preset buttons
+function updateRotationPresetHighlight() {
+  const val = annRotationInput.value;
+  rotationPresets.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.angle === val);
+  });
+}
+
+rotationPresets.forEach(btn => {
+  btn.addEventListener('click', () => {
+    annRotationInput.value = btn.dataset.angle;
+    updateRotationPresetHighlight();
+  });
 });
+
+annRotationInput.addEventListener('input', updateRotationPresetHighlight);
 const markerIndicator = document.getElementById('marker-indicator');
 const modeLabel = document.getElementById('mode-label');
 const workflowSteps = document.getElementById('workflow-steps');
@@ -295,7 +307,7 @@ function renderTable() {
 
 // Click on image — either place marker or add annotation
 imageContainer.addEventListener('click', (e) => {
-  if (e.target.closest('.annotation-dot')) return;
+  if (e.target.closest('.annotation-dot') || e.target.closest('.annotation-tag')) return;
   const rect = panelImage.getBoundingClientRect();
   const x = (e.clientX - rect.left) / rect.width;
   const y = (e.clientY - rect.top) / rect.height;
@@ -330,7 +342,7 @@ function openNewPopup(x, y) {
   annDescInput.value = '';
   annColorInput.value = '#ff0000';
   annRotationInput.value = 0;
-  annRotationValue.textContent = '0°';
+  updateRotationPresetHighlight();
   annFontSizeInput.value = '16';
   annFontFamilyInput.value = '';
   wiringPointsList.innerHTML = '';
@@ -452,7 +464,7 @@ window.openEditPopup = function(ann) {
   annDescInput.value = ann.description || '';
   annColorInput.value = ann.color;
   annRotationInput.value = ann.rotation || 0;
-  annRotationValue.textContent = (ann.rotation || 0) + '°';
+  updateRotationPresetHighlight();
   annFontSizeInput.value = String(ann.font_size || 16);
   annFontFamilyInput.value = ann.font_family || '';
   showTemplatePicker(false);
@@ -517,6 +529,7 @@ window.deleteAnnotation = async function(id) {
 function startDrag(e) {
   if (currentMode === 'marker') return;
   e.preventDefault();
+  e.stopPropagation();
   const dot = e.currentTarget;
   dragging = {
     dot,
