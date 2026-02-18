@@ -10,43 +10,64 @@
     .print-sheet {
       max-width: 700px; margin: 0 auto; text-align: center;
     }
-    h1 { font-size: 1.6em; margin-bottom: 5px; }
-    .subtitle { color: #666; margin-bottom: 20px; font-size: 0.95em; }
     .no-print { margin: 20px 0; }
 
-    /* Combined sticker - QR code IS the marker now */
-    .sticker {
-      display: inline-block;
-      padding: 12px;
-      margin: 20px auto;
+    /* 4x6 UPS label with 2 stickers stacked (each 4" x 3") */
+    .label-page {
+      width: 4in;
+      height: 6in;
+      border: 1px solid #ccc;
+      display: inline-flex;
+      flex-direction: column;
       background: #fff;
     }
-    .sticker-marker img {
-      width: 320px; height: 320px; display: block;
+    .label-half {
+      width: 4in;
+      height: 3in;
+      display: flex;
+      align-items: center;
+      padding: 0.15in 0.2in;
+      gap: 0.15in;
     }
-    .sticker-label {
-      margin-top: 8px;
-      font-size: 0.75em;
+    .label-half + .label-half {
+      border-top: 1px dashed #aaa;
+    }
+    .label-qr img {
+      width: 2.2in;
+      height: 2.2in;
+      display: block;
+    }
+    .label-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.08in;
+      min-width: 0;
+    }
+    .label-name {
+      font-size: 11pt;
+      font-weight: bold;
+      line-height: 1.2;
+      word-wrap: break-word;
+    }
+    .label-desc {
+      font-size: 8pt;
       color: #555;
-      text-align: center;
-      border-top: 1px solid #ddd;
-      padding-top: 8px;
+      line-height: 1.3;
+      word-wrap: break-word;
     }
-    .sticker-hint {
-      font-size: 0.65em;
-      color: #888;
-      margin-top: 4px;
+    .label-hint {
+      font-size: 7pt;
+      color: #666;
+      border-top: 1px solid #eee;
+      padding-top: 0.05in;
+      margin-top: 0.05in;
     }
-
-    /* Cut line */
-    .cut-guide {
-      border: 2px dashed #ccc;
-      padding: 20px;
-      display: inline-block;
-      margin: 10px auto;
-      border-radius: 4px;
+    .label-footer {
+      font-size: 6.5pt;
+      color: #999;
     }
-    .cut-label { font-size: 0.7em; color: #aaa; margin-bottom: 6px; }
 
     .instructions {
       text-align: left; border: 2px dashed #ccc; padding: 15px 20px;
@@ -59,47 +80,55 @@
 
     @media print {
       .no-print { display: none; }
-      body { padding: 5mm; }
-      .cut-guide { border-color: #999; }
+      body { padding: 0; margin: 0; }
+      .print-sheet { max-width: none; }
+      .label-page { border: none; margin: 0; }
+      .label-half + .label-half { border-top-style: dashed; border-top-color: #ccc; }
+      @page { size: 4in 6in; margin: 0; }
     }
   </style>
 </head>
 <body>
   <div class="print-sheet">
     <div class="no-print">
-      <button onclick="window.print()" style="padding:10px 30px;font-size:1.1em;cursor:pointer;">Print This Sheet</button>
+      <button onclick="window.print()" style="padding:10px 30px;font-size:1.1em;cursor:pointer;">Print Label</button>
       <a href="/admin" style="margin-left:15px;">Back to Admin</a>
+      <p style="color:#666;font-size:0.85em;margin-top:8px;">2 labels on a 4" x 6" UPS / thermal label — cut along dashed line</p>
     </div>
 
-    <h1 id="panel-name">Loading...</h1>
-    <p class="subtitle" id="panel-desc"></p>
-
-    <div class="cut-guide">
-      <p class="cut-label">-- cut along dashed line --</p>
-      <div class="sticker" id="sticker">
-        <div class="sticker-marker">
-          <img id="marker-image" src="" alt="AR Marker (scan QR to open viewer)">
+    <div class="label-page">
+      <div class="label-half" id="label-1">
+        <div class="label-qr">
+          <img id="marker-image-1" src="" alt="QR Code">
         </div>
-        <div class="sticker-label" id="sticker-label"></div>
-        <div class="sticker-hint">Scan with your phone camera to open the AR viewer</div>
+        <div class="label-info">
+          <div class="label-name" id="panel-name-1">Loading...</div>
+          <div class="label-desc" id="panel-desc-1"></div>
+          <div class="label-hint">Scan QR with phone camera for AR view</div>
+          <div class="label-footer" id="label-footer-1"></div>
+        </div>
       </div>
-      <p class="cut-label">-- cut along dashed line --</p>
+      <div class="label-half" id="label-2">
+        <div class="label-qr">
+          <img id="marker-image-2" src="" alt="QR Code">
+        </div>
+        <div class="label-info">
+          <div class="label-name" id="panel-name-2">Loading...</div>
+          <div class="label-desc" id="panel-desc-2"></div>
+          <div class="label-hint">Scan QR with phone camera for AR view</div>
+          <div class="label-footer" id="label-footer-2"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="instructions">
+    <div class="instructions no-print">
       <h2>Setup Instructions</h2>
       <ol>
-        <li>Cut out the sticker above along the dashed lines</li>
-        <li>Apply the sticker directly onto the security panel</li>
+        <li>Print on a 4"x6" UPS / thermal label</li>
+        <li>Cut along the dashed line to separate the two stickers</li>
+        <li>Apply each sticker onto its security panel</li>
         <li>Take a photo of the panel with the sticker visible</li>
-        <li>Upload the photo in the <a href="/admin">Admin dashboard</a> and place annotation overlays</li>
-      </ol>
-      <h2 style="margin-top:14px;">For Technicians</h2>
-      <ol>
-        <li>Scan the QR code sticker with your phone camera to open the viewer</li>
-        <li>Allow camera access when prompted</li>
-        <li>Point your phone at the sticker — the AR tracker in the center will be detected automatically</li>
-        <li>Color-coded wiring labels will appear overlaid on the panel</li>
+        <li>Upload the photo in the <a href="/admin">Admin dashboard</a> and place annotations</li>
       </ol>
     </div>
   </div>
@@ -107,18 +136,26 @@
   <script>
     const panelId = window.location.pathname.split('/').pop();
 
+    async function loadLabel(panel, suffix) {
+      document.getElementById('panel-name-' + suffix).textContent = panel.name;
+      document.getElementById('panel-desc-' + suffix).textContent = panel.description || '';
+      document.getElementById('label-footer-' + suffix).textContent = `Panel #${panel.id}`;
+
+      const markerRes = await fetch(`/api/panels/${panel.id}/marker.svg`);
+      const svgText = await markerRes.text();
+      document.getElementById('marker-image-' + suffix).src = 'data:image/svg+xml;base64,' + btoa(svgText);
+    }
+
     async function load() {
       const panelRes = await fetch(`/api/panels/${panelId}`);
-      if (!panelRes.ok) { document.getElementById('panel-name').textContent = 'Panel not found'; return; }
+      if (!panelRes.ok) { document.getElementById('panel-name-1').textContent = 'Panel not found'; return; }
       const panel = await panelRes.json();
-      document.getElementById('panel-name').textContent = panel.name;
-      document.getElementById('panel-desc').textContent = panel.description || '';
-      document.getElementById('sticker-label').textContent = panel.name;
 
-      // QR code with embedded barcode marker in center
-      const markerRes = await fetch(`/api/panels/${panelId}/marker.svg`);
-      const svgText = await markerRes.text();
-      document.getElementById('marker-image').src = 'data:image/svg+xml;base64,' + btoa(svgText);
+      // Both halves show the same panel (two identical stickers)
+      await Promise.all([
+        loadLabel(panel, '1'),
+        loadLabel(panel, '2')
+      ]);
     }
 
     load();
