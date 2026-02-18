@@ -109,7 +109,16 @@ const annYInput = document.getElementById('ann-y');
 const annLabelInput = document.getElementById('ann-label');
 const annDescInput = document.getElementById('ann-desc');
 const annColorInput = document.getElementById('ann-color');
+const annRotationInput = document.getElementById('ann-rotation');
+const annRotationValue = document.getElementById('ann-rotation-value');
+const annFontSizeInput = document.getElementById('ann-font-size');
+const annFontFamilyInput = document.getElementById('ann-font-family');
 const tbody = document.getElementById('annotations-tbody');
+
+// Live-update rotation display
+annRotationInput.addEventListener('input', () => {
+  annRotationValue.textContent = annRotationInput.value + '°';
+});
 const markerIndicator = document.getElementById('marker-indicator');
 const modeLabel = document.getElementById('mode-label');
 const workflowSteps = document.getElementById('workflow-steps');
@@ -196,37 +205,70 @@ async function loadAnnotations() {
   renderTable();
 }
 
-// Render annotation dots on the image
+// Render AR-style annotation callouts on the image
 function renderAnnotations() {
   overlay.innerHTML = '';
   annotations.forEach(ann => {
+    const rotation = ann.rotation || 0;
+    const fontSize = ann.font_size || 16;
+    const fontFamily = ann.font_family || '';
+    const stemLen = 40;
+
+    // Outer wrapper positioned at annotation point
+    const callout = document.createElement('div');
+    callout.className = 'annotation-callout';
+    callout.style.left = `${ann.x_percent * 100}%`;
+    callout.style.top = `${ann.y_percent * 100}%`;
+
+    // Dot at the anchor point (drag handle)
     const dot = document.createElement('div');
     dot.className = 'annotation-dot';
-    dot.style.left = `${ann.x_percent * 100}%`;
-    dot.style.top = `${ann.y_percent * 100}%`;
     dot.style.backgroundColor = ann.color;
     dot.title = ann.label;
     dot.dataset.id = ann.id;
 
-    const label = document.createElement('span');
-    label.className = 'dot-label';
-    label.textContent = ann.label;
-    label.style.borderColor = ann.color;
-    dot.appendChild(label);
+    // Rotatable stem + label wrapper (flex column: tag on top, stem below, anchored at bottom = dot)
+    const stemWrap = document.createElement('div');
+    stemWrap.className = 'annotation-stem-wrap';
+    stemWrap.style.transform = `rotate(${rotation}deg)`;
 
+    // Label plate (at top, furthest from dot)
+    const tag = document.createElement('div');
+    tag.className = 'annotation-tag';
+    tag.style.backgroundColor = ann.color;
+    tag.style.fontSize = `${fontSize * 0.75}px`;
+    if (fontFamily) tag.style.fontFamily = fontFamily;
+    tag.textContent = ann.label;
+    tag.dataset.id = ann.id;
+
+    // Stem line (between tag and dot)
+    const stem = document.createElement('div');
+    stem.className = 'annotation-stem';
+    stem.style.backgroundColor = ann.color;
+    stem.style.height = `${stemLen}px`;
+
+    stemWrap.appendChild(tag);
+    stemWrap.appendChild(stem);
+    callout.appendChild(stemWrap);
+    callout.appendChild(dot);
+
+    // Drag on dot
     dot.addEventListener('mousedown', startDrag);
     dot.addEventListener('touchstart', startDrag, { passive: false });
 
-    dot.addEventListener('click', (e) => {
+    // Click on dot or tag opens edit
+    const handleClick = (e) => {
       if (dot.dataset.dragged) {
         delete dot.dataset.dragged;
         return;
       }
       e.stopPropagation();
       openEditPopup(ann);
-    });
+    };
+    dot.addEventListener('click', handleClick);
+    tag.addEventListener('click', handleClick);
 
-    overlay.appendChild(dot);
+    overlay.appendChild(callout);
   });
 }
 
@@ -287,6 +329,10 @@ function openNewPopup(x, y) {
   annLabelInput.value = '';
   annDescInput.value = '';
   annColorInput.value = '#ff0000';
+  annRotationInput.value = 0;
+  annRotationValue.textContent = '0°';
+  annFontSizeInput.value = '16';
+  annFontFamilyInput.value = '';
   wiringPointsList.innerHTML = '';
   showTemplatePicker(true);
   renderTemplatePicker();
@@ -405,6 +451,10 @@ window.openEditPopup = function(ann) {
   annLabelInput.value = ann.label;
   annDescInput.value = ann.description || '';
   annColorInput.value = ann.color;
+  annRotationInput.value = ann.rotation || 0;
+  annRotationValue.textContent = (ann.rotation || 0) + '°';
+  annFontSizeInput.value = String(ann.font_size || 16);
+  annFontFamilyInput.value = ann.font_family || '';
   showTemplatePicker(false);
   popup.style.display = 'flex';
   annLabelInput.focus();
@@ -423,7 +473,10 @@ annForm.addEventListener('submit', async (e) => {
     y_percent: parseFloat(annYInput.value),
     label: annLabelInput.value,
     description: annDescInput.value,
-    color: annColorInput.value
+    color: annColorInput.value,
+    rotation: parseFloat(annRotationInput.value) || 0,
+    font_size: parseFloat(annFontSizeInput.value) || 16,
+    font_family: annFontFamilyInput.value
   };
 
   const id = annIdInput.value;
@@ -479,8 +532,15 @@ function startDrag(e) {
     let y = (clientY - rect.top) / rect.height;
     x = Math.max(0, Math.min(1, x));
     y = Math.max(0, Math.min(1, y));
-    dot.style.left = `${x * 100}%`;
-    dot.style.top = `${y * 100}%`;
+    // Move the callout wrapper (parent of the dot)
+    const callout = dot.closest('.annotation-callout');
+    if (callout) {
+      callout.style.left = `${x * 100}%`;
+      callout.style.top = `${y * 100}%`;
+    } else {
+      dot.style.left = `${x * 100}%`;
+      dot.style.top = `${y * 100}%`;
+    }
     dragging.x = x;
     dragging.y = y;
     dragging.moved = true;

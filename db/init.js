@@ -62,6 +62,14 @@ if (!cols.includes('manual_url')) {
   db.exec("ALTER TABLE panels ADD COLUMN manual_filename TEXT DEFAULT ''");
 }
 
+// Migration: add annotation styling columns if missing
+const annCols = db.prepare("PRAGMA table_info(annotations)").all().map(c => c.name);
+if (!annCols.includes('rotation')) {
+  db.exec("ALTER TABLE annotations ADD COLUMN rotation REAL DEFAULT 0");
+  db.exec("ALTER TABLE annotations ADD COLUMN font_size REAL DEFAULT 16");
+  db.exec("ALTER TABLE annotations ADD COLUMN font_family TEXT DEFAULT ''");
+}
+
 // Migration: reassign marker values > 31 to valid 0-31 range for 4x4_BCH_13_5_5
 const outOfRange = db.prepare('SELECT id, name, marker_value FROM panels WHERE marker_value > 31 ORDER BY id').all();
 if (outOfRange.length > 0) {

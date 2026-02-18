@@ -146,14 +146,14 @@ router.post('/panels/:id/annotations', (req, res) => {
   const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
   if (!panel) return res.status(404).json({ error: 'Panel not found' });
 
-  const { x_percent, y_percent, label, description, color } = req.body;
+  const { x_percent, y_percent, label, description, color, rotation, font_size, font_family } = req.body;
   if (x_percent == null || y_percent == null || !label) {
     return res.status(400).json({ error: 'x_percent, y_percent, and label are required' });
   }
 
   const result = db.prepare(
-    'INSERT INTO annotations (panel_id, x_percent, y_percent, label, description, color) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(panel.id, x_percent, y_percent, label, description || '', color || '#ff0000');
+    'INSERT INTO annotations (panel_id, x_percent, y_percent, label, description, color, rotation, font_size, font_family) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(panel.id, x_percent, y_percent, label, description || '', color || '#ff0000', rotation || 0, font_size || 16, font_family || '');
 
   const annotation = db.prepare('SELECT * FROM annotations WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(annotation);
@@ -164,16 +164,19 @@ router.put('/annotations/:id', (req, res) => {
   const annotation = db.prepare('SELECT * FROM annotations WHERE id = ?').get(req.params.id);
   if (!annotation) return res.status(404).json({ error: 'Annotation not found' });
 
-  const { x_percent, y_percent, label, description, color } = req.body;
+  const { x_percent, y_percent, label, description, color, rotation, font_size, font_family } = req.body;
 
   db.prepare(
-    'UPDATE annotations SET x_percent = ?, y_percent = ?, label = ?, description = ?, color = ? WHERE id = ?'
+    'UPDATE annotations SET x_percent = ?, y_percent = ?, label = ?, description = ?, color = ?, rotation = ?, font_size = ?, font_family = ? WHERE id = ?'
   ).run(
     x_percent != null ? x_percent : annotation.x_percent,
     y_percent != null ? y_percent : annotation.y_percent,
     label || annotation.label,
     description !== undefined ? description : annotation.description,
     color || annotation.color,
+    rotation != null ? rotation : annotation.rotation,
+    font_size != null ? font_size : annotation.font_size,
+    font_family != null ? font_family : annotation.font_family,
     annotation.id
   );
 

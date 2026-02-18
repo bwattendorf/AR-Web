@@ -84,6 +84,33 @@
             <label for="ann-color">Color</label>
             <input type="color" id="ann-color" value="#ff0000">
           </div>
+          <div class="annotation-style-controls">
+            <div class="form-group form-group-inline">
+              <label for="ann-rotation">Rotation</label>
+              <div class="range-with-value">
+                <input type="range" id="ann-rotation" min="0" max="360" value="0" step="1">
+                <span id="ann-rotation-value">0°</span>
+              </div>
+            </div>
+            <div class="form-group form-group-inline">
+              <label for="ann-font-size">Font Size</label>
+              <select id="ann-font-size">
+                <option value="12">Small (12px)</option>
+                <option value="16" selected>Medium (16px)</option>
+                <option value="20">Large (20px)</option>
+                <option value="24">X-Large (24px)</option>
+              </select>
+            </div>
+            <div class="form-group form-group-inline">
+              <label for="ann-font-family">Font</label>
+              <select id="ann-font-family">
+                <option value="">Default</option>
+                <option value="Arial">Arial</option>
+                <option value="monospace">Monospace</option>
+                <option value="serif">Serif</option>
+              </select>
+            </div>
+          </div>
           <div class="wiring-points-section">
             <label class="wiring-points-label">Wiring Points</label>
             <div id="wiring-points-list"></div>

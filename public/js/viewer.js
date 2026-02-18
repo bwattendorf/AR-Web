@@ -106,23 +106,42 @@ async function init() {
       const x = ((ann.x_percent - markerX) * scale).toFixed(3);
       const y = (-(ann.y_percent - markerY) * scale).toFixed(3);
       const z = (0.3 + index * 0.05).toFixed(3);
-      const bgW = Math.max(0.7, ann.label.length * 0.08 + 0.2).toFixed(2);
+
+      const fontSize = ann.font_size || 16;
+      const textWidth = (fontSize / 16 * 1.8).toFixed(2);
+      const bgW = Math.max(0.7, ann.label.length * (fontSize / 16) * 0.08 + 0.2).toFixed(2);
+      const bgH = (fontSize / 16 * 0.22).toFixed(2);
+
+      const rotation = ann.rotation || 0;
+      const fontFamily = ann.font_family || '';
+
+      // Map font_family to A-Frame font
+      let fontAttr = '';
+      if (fontFamily === 'monospace') fontAttr = 'font: monoid';
+      else if (fontFamily === 'serif') fontAttr = 'font: sourcecodepro';
 
       // Stem height matches z (toward camera)
       const stemH = parseFloat(z);
 
       const hasWiring = ann.wiring_points && ann.wiring_points.length > 0;
 
+      // Rotation around the anchor: rotate the whole annotation entity around its Z axis
+      const entityRotation = `0 0 ${rotation}`;
+
       annotationHTML += `
-        <a-entity position="${x} ${y} ${z}" data-ann-id="${ann.id}" ${hasWiring ? 'data-has-wiring="true"' : ''}>
-          <a-plane width="${bgW}" height="0.22" color="${ann.color}" opacity="0.9" position="0 0 0.001"></a-plane>
-          <a-text value="${ann.label}" color="#fff" align="center" width="1.8" position="0 0 0.002"></a-text>
-          <a-entity geometry="primitive: cylinder; radius: 0.01; height: ${stemH}" material="color: ${ann.color}; opacity: 0.8" rotation="90 0 0" position="0 0 ${(-stemH / 2).toFixed(3)}"></a-entity>
-          <a-sphere radius="0.03" color="${ann.color}" position="0 0 ${(-stemH).toFixed(3)}"></a-sphere>
+        <a-entity position="${x} ${y} 0" rotation="0 0 0" data-ann-id="${ann.id}" ${hasWiring ? 'data-has-wiring="true"' : ''}>
+          <a-entity rotation="${entityRotation}">
+            <a-entity position="0 0 ${z}">
+              <a-plane width="${bgW}" height="${bgH}" color="${ann.color}" opacity="0.9" position="0 0 0.001"></a-plane>
+              <a-text value="${ann.label}" color="#fff" align="center" width="${textWidth}" position="0 0 0.002" ${fontAttr}></a-text>
+            </a-entity>
+            <a-entity geometry="primitive: cylinder; radius: 0.01; height: ${stemH}" material="color: ${ann.color}; opacity: 0.8" rotation="90 0 0" position="0 0 ${(stemH / 2).toFixed(3)}"></a-entity>
+          </a-entity>
+          <a-sphere radius="0.03" color="${ann.color}" position="0 0 0"></a-sphere>
         </a-entity>
       `;
 
-      log(`Annotation "${ann.label}" at (${x}, ${y}, ${z})${hasWiring ? ` [${ann.wiring_points.length} wiring pts]` : ''}`);
+      log(`Annotation "${ann.label}" at (${x}, ${y}, ${z}) rot=${rotation}° font=${fontSize}px${hasWiring ? ` [${ann.wiring_points.length} wiring pts]` : ''}`);
     });
 
     // Insert MindAR scene
