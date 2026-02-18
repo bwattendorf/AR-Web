@@ -467,6 +467,112 @@ document.getElementById('upload-form').addEventListener('submit', async (e) => {
   }
 });
 
+// --- MindAR Target Compilation ---
+
+function loadScriptDynamic(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Failed to load: ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+window.compileARTarget = async function() {
+  const btn = document.getElementById('compile-btn');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Loading compiler...';
+
+  try {
+    // 1. Load MindAR compiler
+    await loadScriptDynamic('https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js');
+    btn.textContent = 'Fetching sticker...';
+
+    // 2. Fetch the sticker SVG
+    const svgRes = await fetch(`/api/panels/${panelId}/marker.svg`);
+    if (!svgRes.ok) throw new Error('Failed to fetch sticker SVG');
+    const svgText = await svgRes.text();
+
+    btn.textContent = 'Rendering image...';
+
+    // 3. Render SVG to canvas → ImageData
+    const imageData = await svgToImageData(svgText);
+
+    btn.textContent = 'Compiling target (this may take a minute)...';
+
+    // 4. Compile with MindAR
+    const compiler = new MINDAR.IMAGE.Compiler();
+    await compiler.compileImageTargets([imageData], (progress) => {
+      btn.textContent = `Compiling... ${Math.round(progress)}%`;
+    });
+    const buffer = compiler.exportData();
+
+    btn.textContent = 'Uploading...';
+
+    // 5. Upload .mind file
+    const formData = new FormData();
+    formData.append('target', new Blob([buffer], { type: 'application/octet-stream' }), 'target.mind');
+
+    const uploadRes = await fetch(`/api/panels/${panelId}/compile-target`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!uploadRes.ok) throw new Error('Upload failed');
+
+    btn.textContent = 'Compiled!';
+    btn.style.background = '#059669';
+    btn.style.color = '#fff';
+    setTimeout(() => {
+      btn.textContent = origText;
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.disabled = false;
+    }, 3000);
+
+  } catch (err) {
+    console.error('Compile error:', err);
+    btn.textContent = 'Error: ' + err.message;
+    btn.style.background = '#dc2626';
+    btn.style.color = '#fff';
+    setTimeout(() => {
+      btn.textContent = origText;
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.disabled = false;
+    }, 5000);
+  }
+};
+
+function svgToImageData(svgText) {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([svgText], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      // Render at a good size for MindAR feature extraction
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      resolve(ctx.getImageData(0, 0, size, size));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to render SVG to image'));
+    };
+    img.src = url;
+  });
+}
+
 // Init
 loadPanel();
 loadAnnotations();

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const QRCode = require('qrcode');
 const db = require('../db/init');
 
@@ -203,6 +204,49 @@ router.get('/panels/:id/qrcode', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Failed to generate QR code' });
   }
+});
+
+// --- MindAR Target Upload/Serve ---
+
+// Multer config for .mind file uploads (binary)
+const mindStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, req.app.locals.uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `target-${req.params.id}.mind`);
+  }
+});
+const mindUpload = multer({
+  storage: mindStorage,
+  fileFilter: (req, file, cb) => {
+    cb(null, file.originalname.endsWith('.mind') || file.mimetype === 'application/octet-stream');
+  },
+  limits: { fileSize: 20 * 1024 * 1024 } // 20MB
+});
+
+// Upload compiled .mind target file
+router.post('/panels/:id/compile-target', mindUpload.single('target'), (req, res) => {
+  const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
+  if (!panel) return res.status(404).json({ error: 'Panel not found' });
+  if (!req.file) return res.status(400).json({ error: 'No .mind file uploaded' });
+
+  res.json({ success: true, filename: req.file.filename });
+});
+
+// Serve .mind target file
+router.get('/panels/:id/target.mind', (req, res) => {
+  const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
+  if (!panel) return res.status(404).json({ error: 'Panel not found' });
+
+  const mindPath = path.join(req.app.locals.uploadsDir, `target-${panel.id}.mind`);
+  if (!fs.existsSync(mindPath)) {
+    return res.status(404).json({ error: 'AR target not yet compiled. Open the editor and click "Compile AR Target".' });
+  }
+
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(mindPath);
 });
 
 // --- Pattern Marker Generation (QR code as AR marker) ---
