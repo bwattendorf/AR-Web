@@ -126,12 +126,18 @@ router.put('/panels/:id/marker-position', (req, res) => {
 
 // --- Annotations CRUD ---
 
-// Get annotations for a panel
+// Get annotations for a panel (includes wiring_point_count)
 router.get('/panels/:id/annotations', (req, res) => {
   const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
   if (!panel) return res.status(404).json({ error: 'Panel not found' });
 
-  const annotations = db.prepare('SELECT * FROM annotations WHERE panel_id = ?').all(req.params.id);
+  const annotations = db.prepare(`
+    SELECT a.*, COUNT(wp.id) AS wiring_point_count
+    FROM annotations a
+    LEFT JOIN wiring_points wp ON wp.annotation_id = a.id
+    WHERE a.panel_id = ?
+    GROUP BY a.id
+  `).all(req.params.id);
   res.json(annotations);
 });
 
@@ -182,6 +188,107 @@ router.delete('/annotations/:id', (req, res) => {
 
   db.prepare('DELETE FROM annotations WHERE id = ?').run(req.params.id);
   res.json({ success: true });
+});
+
+// --- Wiring Points ---
+
+// Get wiring points for an annotation
+router.get('/annotations/:id/wiring-points', (req, res) => {
+  const annotation = db.prepare('SELECT * FROM annotations WHERE id = ?').get(req.params.id);
+  if (!annotation) return res.status(404).json({ error: 'Annotation not found' });
+
+  const points = db.prepare('SELECT * FROM wiring_points WHERE annotation_id = ? ORDER BY sort_order, id').all(req.params.id);
+  res.json(points);
+});
+
+// Bulk replace wiring points for an annotation
+router.put('/annotations/:id/wiring-points', (req, res) => {
+  const annotation = db.prepare('SELECT * FROM annotations WHERE id = ?').get(req.params.id);
+  if (!annotation) return res.status(404).json({ error: 'Annotation not found' });
+
+  const points = req.body;
+  if (!Array.isArray(points)) return res.status(400).json({ error: 'Expected JSON array of wiring points' });
+
+  const replace = db.transaction(() => {
+    db.prepare('DELETE FROM wiring_points WHERE annotation_id = ?').run(annotation.id);
+    const insert = db.prepare(
+      'INSERT INTO wiring_points (annotation_id, pin, label, description, wire_color, sort_order) VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    points.forEach((pt, i) => {
+      insert.run(annotation.id, pt.pin || '', pt.label || '', pt.description || '', pt.wire_color || '', pt.sort_order != null ? pt.sort_order : i);
+    });
+  });
+  replace();
+
+  const saved = db.prepare('SELECT * FROM wiring_points WHERE annotation_id = ? ORDER BY sort_order, id').all(annotation.id);
+  res.json(saved);
+});
+
+// Get annotations with wiring points for a panel (viewer use)
+router.get('/panels/:id/annotations-with-wiring', (req, res) => {
+  const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
+  if (!panel) return res.status(404).json({ error: 'Panel not found' });
+
+  const annotations = db.prepare('SELECT * FROM annotations WHERE panel_id = ?').all(req.params.id);
+  const wpStmt = db.prepare('SELECT * FROM wiring_points WHERE annotation_id = ? ORDER BY sort_order, id');
+  const result = annotations.map(ann => ({
+    ...ann,
+    wiring_points: wpStmt.all(ann.id)
+  }));
+  res.json(result);
+});
+
+// --- Panel Manual ---
+
+// Multer config for manual PDF uploads
+const manualStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, req.app.locals.uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `manual-${req.params.id}.pdf`);
+  }
+});
+const manualUpload = multer({
+  storage: manualStorage,
+  fileFilter: (req, file, cb) => {
+    cb(null, file.mimetype === 'application/pdf');
+  },
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB
+});
+
+// Set manual URL and/or upload PDF
+router.put('/panels/:id/manual', manualUpload.single('manual_pdf'), (req, res) => {
+  const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
+  if (!panel) return res.status(404).json({ error: 'Panel not found' });
+
+  const manual_url = req.body.manual_url !== undefined ? req.body.manual_url : panel.manual_url;
+  const manual_filename = req.file ? req.file.filename : panel.manual_filename;
+
+  db.prepare('UPDATE panels SET manual_url = ?, manual_filename = ? WHERE id = ?')
+    .run(manual_url || '', manual_filename || '', panel.id);
+
+  const updated = db.prepare('SELECT * FROM panels WHERE id = ?').get(panel.id);
+  res.json(updated);
+});
+
+// Serve uploaded manual PDF
+router.get('/panels/:id/manual.pdf', (req, res) => {
+  const panel = db.prepare('SELECT * FROM panels WHERE id = ?').get(req.params.id);
+  if (!panel) return res.status(404).json({ error: 'Panel not found' });
+
+  if (!panel.manual_filename) {
+    return res.status(404).json({ error: 'No manual PDF uploaded' });
+  }
+
+  const pdfPath = path.join(req.app.locals.uploadsDir, panel.manual_filename);
+  if (!fs.existsSync(pdfPath)) {
+    return res.status(404).json({ error: 'Manual PDF file not found' });
+  }
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline');
+  res.sendFile(pdfPath);
 });
 
 // --- QR Code Generation ---

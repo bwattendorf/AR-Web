@@ -28,8 +28,39 @@
       position: fixed; bottom: 0; left: 0; width: 100%;
       background: rgba(0,0,0,0.7); color: white; padding: 10px;
       font-family: Arial, sans-serif; font-size: 0.9em; text-align: center;
-      z-index: 100;
+      z-index: 100; display: flex; align-items: center; justify-content: center; gap: 12px;
     }
+    #manual-btn {
+      display: none; background: #2563eb; color: #fff; border: none;
+      padding: 6px 14px; border-radius: 6px; font-size: 0.85em; cursor: pointer;
+      text-decoration: none; white-space: nowrap;
+    }
+    #manual-btn:hover { background: #1d4ed8; }
+
+    /* Wiring detail overlay */
+    #wiring-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85); z-index: 500;
+      font-family: Arial, sans-serif; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #wiring-overlay.visible { display: flex; align-items: flex-start; justify-content: center; padding: 20px; }
+    #wiring-card {
+      background: #fff; border-radius: 12px; padding: 20px; width: 100%; max-width: 500px;
+      margin-top: 20px; color: #333; position: relative;
+    }
+    #wiring-card h2 { margin: 0 0 4px; font-size: 1.2em; }
+    #wiring-card .wiring-desc { color: #666; font-size: 0.9em; margin-bottom: 14px; }
+    #wiring-card table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+    #wiring-card th { text-align: left; padding: 6px 8px; border-bottom: 2px solid #e5e7eb; font-size: 0.8em; color: #6b7280; text-transform: uppercase; }
+    #wiring-card td { padding: 8px; border-bottom: 1px solid #f3f4f6; }
+    #wiring-card .wire-color-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid #ccc; vertical-align: middle; margin-right: 4px; }
+    #wiring-close {
+      display: block; width: 100%; margin-top: 16px; padding: 14px;
+      background: #2563eb; color: #fff; border: none; border-radius: 8px;
+      font-size: 1.1em; font-weight: 600; cursor: pointer;
+    }
+    #wiring-close:hover { background: #1d4ed8; }
     #debug-log {
       position: fixed; top: 10px; left: 10px; right: 10px;
       background: rgba(0,0,0,0.85); color: #0f0; padding: 10px;
@@ -46,7 +77,22 @@
   </div>
 
   <div id="info-bar">
-    <span id="panel-name">Loading...</span> &mdash; Point camera at the printed sticker
+    <span><span id="panel-name">Loading...</span> &mdash; Point camera at the printed sticker</span>
+    <a id="manual-btn" href="#" target="_blank">Manual</a>
+  </div>
+
+  <div id="wiring-overlay">
+    <div id="wiring-card">
+      <h2 id="wiring-title"></h2>
+      <div class="wiring-desc" id="wiring-desc"></div>
+      <table id="wiring-table">
+        <thead>
+          <tr><th>Pin</th><th>Label</th><th>Wire Color</th><th>Description</th></tr>
+        </thead>
+        <tbody id="wiring-tbody"></tbody>
+      </table>
+      <button id="wiring-close" onclick="closeWiringOverlay()">Close</button>
+    </div>
   </div>
 
   <div id="debug-log"></div>

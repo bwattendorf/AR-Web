@@ -36,6 +36,17 @@ db.exec(`
     color TEXT DEFAULT '#ff0000',
     FOREIGN KEY (panel_id) REFERENCES panels(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS wiring_points (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    annotation_id INTEGER NOT NULL,
+    pin TEXT NOT NULL,
+    label TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    wire_color TEXT DEFAULT '',
+    sort_order INTEGER DEFAULT 0,
+    FOREIGN KEY (annotation_id) REFERENCES annotations(id) ON DELETE CASCADE
+  );
 `);
 
 // Migration: add marker position columns if missing
@@ -43,6 +54,12 @@ const cols = db.prepare("PRAGMA table_info(panels)").all().map(c => c.name);
 if (!cols.includes('marker_x_percent')) {
   db.exec("ALTER TABLE panels ADD COLUMN marker_x_percent REAL DEFAULT 0.5");
   db.exec("ALTER TABLE panels ADD COLUMN marker_y_percent REAL DEFAULT 0.5");
+}
+
+// Migration: add manual_url and manual_filename columns if missing
+if (!cols.includes('manual_url')) {
+  db.exec("ALTER TABLE panels ADD COLUMN manual_url TEXT DEFAULT ''");
+  db.exec("ALTER TABLE panels ADD COLUMN manual_filename TEXT DEFAULT ''");
 }
 
 // Migration: reassign marker values > 31 to valid 0-31 range for 4x4_BCH_13_5_5

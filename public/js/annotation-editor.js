@@ -235,9 +235,11 @@ function renderTable() {
   tbody.innerHTML = '';
   annotations.forEach(ann => {
     const tr = document.createElement('tr');
+    const wpCount = ann.wiring_point_count || 0;
+    const wpBadge = wpCount > 0 ? ` <span class="wp-badge">${wpCount} pts</span>` : '';
     tr.innerHTML = `
       <td><span class="color-swatch" style="background:${ann.color}"></span></td>
-      <td>${ann.label}</td>
+      <td>${ann.label}${wpBadge}</td>
       <td>${ann.description || '-'}</td>
       <td>${(ann.x_percent * 100).toFixed(1)}%, ${(ann.y_percent * 100).toFixed(1)}%</td>
       <td>
@@ -285,6 +287,7 @@ function openNewPopup(x, y) {
   annLabelInput.value = '';
   annDescInput.value = '';
   annColorInput.value = '#ff0000';
+  wiringPointsList.innerHTML = '';
   showTemplatePicker(true);
   renderTemplatePicker();
   popup.style.display = 'flex';
@@ -342,6 +345,58 @@ function applyTemplate(item, color) {
   annLabelInput.focus();
 }
 
+// --- Wiring Points UI ---
+const wiringPointsList = document.getElementById('wiring-points-list');
+
+window.addWiringPointRow = function(data) {
+  const row = document.createElement('div');
+  row.className = 'wiring-point-row';
+  row.innerHTML = `
+    <input type="text" class="wp-pin" placeholder="Pin" value="${data ? (data.pin || '') : ''}">
+    <input type="text" class="wp-label" placeholder="Label" value="${data ? (data.label || '') : ''}">
+    <input type="text" class="wp-desc" placeholder="Description" value="${data ? (data.description || '') : ''}">
+    <input type="text" class="wp-color" placeholder="Wire color" value="${data ? (data.wire_color || '') : ''}">
+    <button type="button" class="btn btn-small btn-danger wp-remove" onclick="this.closest('.wiring-point-row').remove()">&times;</button>
+  `;
+  wiringPointsList.appendChild(row);
+};
+
+function getWiringPointsFromForm() {
+  const rows = wiringPointsList.querySelectorAll('.wiring-point-row');
+  const points = [];
+  rows.forEach((row, i) => {
+    const pin = row.querySelector('.wp-pin').value.trim();
+    const label = row.querySelector('.wp-label').value.trim();
+    if (!pin && !label) return; // skip empty rows
+    points.push({
+      pin,
+      label,
+      description: row.querySelector('.wp-desc').value.trim(),
+      wire_color: row.querySelector('.wp-color').value.trim(),
+      sort_order: i
+    });
+  });
+  return points;
+}
+
+async function loadWiringPoints(annId) {
+  wiringPointsList.innerHTML = '';
+  if (!annId) return;
+  const res = await fetch(`/api/annotations/${annId}/wiring-points`);
+  if (!res.ok) return;
+  const points = await res.json();
+  points.forEach(pt => addWiringPointRow(pt));
+}
+
+async function saveWiringPoints(annId) {
+  const points = getWiringPointsFromForm();
+  await fetch(`/api/annotations/${annId}/wiring-points`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(points)
+  });
+}
+
 window.openEditPopup = function(ann) {
   popupTitle.textContent = 'Edit Annotation';
   annIdInput.value = ann.id;
@@ -353,13 +408,14 @@ window.openEditPopup = function(ann) {
   showTemplatePicker(false);
   popup.style.display = 'flex';
   annLabelInput.focus();
+  loadWiringPoints(ann.id);
 };
 
 window.closePopup = function() {
   popup.style.display = 'none';
 };
 
-// Save annotation (create or update)
+// Save annotation (create or update) + wiring points
 annForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = {
@@ -371,6 +427,7 @@ annForm.addEventListener('submit', async (e) => {
   };
 
   const id = annIdInput.value;
+  let savedId = id;
   if (id) {
     await fetch(`/api/annotations/${id}`, {
       method: 'PUT',
@@ -378,11 +435,18 @@ annForm.addEventListener('submit', async (e) => {
       body: JSON.stringify(data)
     });
   } else {
-    await fetch(`/api/panels/${panelId}/annotations`, {
+    const res = await fetch(`/api/panels/${panelId}/annotations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
+    const created = await res.json();
+    savedId = created.id;
+  }
+
+  // Save wiring points
+  if (savedId) {
+    await saveWiringPoints(savedId);
   }
 
   closePopup();
@@ -589,6 +653,48 @@ function svgToImage(svgText) {
   });
 }
 
+// --- Manual Section ---
+const manualSection = document.getElementById('manual-section');
+const manualUrlInput = document.getElementById('manual-url');
+const manualPdfInput = document.getElementById('manual-pdf-input');
+const manualStatus = document.getElementById('manual-status');
+
+function showManualSection() {
+  if (!panel) return;
+  manualSection.style.display = '';
+  manualUrlInput.value = panel.manual_url || '';
+  updateManualStatus();
+}
+
+function updateManualStatus() {
+  const parts = [];
+  if (panel.manual_url) parts.push('URL set');
+  if (panel.manual_filename) parts.push('PDF uploaded');
+  manualStatus.textContent = parts.length ? 'Current: ' + parts.join(', ') : '';
+}
+
+window.saveManual = async function() {
+  const formData = new FormData();
+  formData.append('manual_url', manualUrlInput.value.trim());
+  if (manualPdfInput.files[0]) {
+    formData.append('manual_pdf', manualPdfInput.files[0]);
+  }
+
+  const res = await fetch(`/api/panels/${panelId}/manual`, {
+    method: 'PUT',
+    body: formData
+  });
+
+  if (res.ok) {
+    const updated = await res.json();
+    panel.manual_url = updated.manual_url;
+    panel.manual_filename = updated.manual_filename;
+    manualPdfInput.value = '';
+    updateManualStatus();
+    manualStatus.textContent += ' — Saved!';
+  }
+};
+
 // Init
-loadPanel();
+loadPanel().then(() => showManualSection());
 loadAnnotations();
