@@ -48,17 +48,17 @@ async function init() {
       const x = ((ann.x_percent - markerX) * scale).toFixed(3);
       const y = (-(ann.y_percent - markerY) * scale).toFixed(3);
       const z = (0.3 + index * 0.05).toFixed(3);
-      const bgW = Math.max(0.6, ann.label.length * 0.06 + 0.15).toFixed(2);
+      const bgW = Math.max(0.7, ann.label.length * 0.08 + 0.2).toFixed(2);
 
       // Stem height matches z (toward camera)
       const stemH = parseFloat(z);
 
       annotationHTML += `
         <a-entity position="${x} ${y} ${z}">
-          <a-plane width="${bgW}" height="0.18" color="#000" opacity="0.7" position="0 0 0.001"></a-plane>
-          <a-text value="${ann.label}" color="${ann.color}" align="center" width="1.5" position="0 0 0.002"></a-text>
-          <a-entity geometry="primitive: cylinder; radius: 0.008; height: ${stemH}" material="color: ${ann.color}; opacity: 0.6" rotation="90 0 0" position="0 0 ${(-stemH / 2).toFixed(3)}"></a-entity>
-          <a-sphere radius="0.025" color="${ann.color}" position="0 0 ${(-stemH).toFixed(3)}"></a-sphere>
+          <a-plane width="${bgW}" height="0.22" color="${ann.color}" opacity="0.9" position="0 0 0.001"></a-plane>
+          <a-text value="${ann.label}" color="#fff" align="center" width="1.8" position="0 0 0.002"></a-text>
+          <a-entity geometry="primitive: cylinder; radius: 0.01; height: ${stemH}" material="color: ${ann.color}; opacity: 0.8" rotation="90 0 0" position="0 0 ${(-stemH / 2).toFixed(3)}"></a-entity>
+          <a-sphere radius="0.03" color="${ann.color}" position="0 0 ${(-stemH).toFixed(3)}"></a-sphere>
         </a-entity>
       `;
 
