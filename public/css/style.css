@@ -524,3 +524,68 @@ th {
   border: 1px solid #d1d5db;
   vertical-align: middle;
 }
+
+/* Wiring points editor */
+.wiring-points-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.wiring-points-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9em;
+  margin-bottom: 8px;
+}
+
+.wiring-point-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+
+.wiring-point-row input {
+  padding: 5px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.wiring-point-row .wp-pin {
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.wiring-point-row .wp-label {
+  width: 100px;
+  flex: 1;
+}
+
+.wiring-point-row .wp-desc {
+  width: 120px;
+  flex: 1;
+}
+
+.wiring-point-row .wp-color {
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.wiring-point-row .wp-remove {
+  padding: 3px 8px;
+  flex-shrink: 0;
+}
+
+.wp-badge {
+  display: inline-block;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.75em;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 6px;
+  vertical-align: middle;
+}

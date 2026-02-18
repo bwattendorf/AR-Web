@@ -84,6 +84,11 @@
             <label for="ann-color">Color</label>
             <input type="color" id="ann-color" value="#ff0000">
           </div>
+          <div class="wiring-points-section">
+            <label class="wiring-points-label">Wiring Points</label>
+            <div id="wiring-points-list"></div>
+            <button type="button" class="btn btn-small btn-secondary" onclick="addWiringPointRow()">+ Add Wiring Point</button>
+          </div>
           <div class="popup-actions">
             <button type="submit" class="btn">Save</button>
             <button type="button" class="btn btn-secondary" onclick="closePopup()">Cancel</button>
@@ -91,6 +96,21 @@
         </form>
       </div>
     </div>
+
+    <section id="manual-section" class="card" style="display:none;">
+      <h2>Equipment Manual</h2>
+      <p class="hint">Add a link to the equipment manual or upload a PDF. Technicians can access this from the AR viewer.</p>
+      <div class="form-group" style="margin-top:10px;">
+        <label for="manual-url">Manual URL</label>
+        <input type="text" id="manual-url" placeholder="https://example.com/manual.pdf">
+      </div>
+      <div class="form-group">
+        <label for="manual-pdf-input">Or Upload PDF</label>
+        <input type="file" id="manual-pdf-input" accept="application/pdf">
+      </div>
+      <div id="manual-status" class="hint" style="margin-bottom:10px;"></div>
+      <button class="btn btn-small" onclick="saveManual()">Save Manual</button>
+    </section>
 
     <section id="annotations-list-section" class="card">
       <h2>Annotations</h2>
