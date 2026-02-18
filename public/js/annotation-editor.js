@@ -469,10 +469,11 @@ document.getElementById('upload-form').addEventListener('submit', async (e) => {
 
 // --- MindAR Target Compilation ---
 
-function loadScriptDynamic(src) {
+function loadModuleScript(src) {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
     const s = document.createElement('script');
+    s.type = 'module';
     s.src = src;
     s.onload = resolve;
     s.onerror = () => reject(new Error('Failed to load: ' + src));
@@ -487,8 +488,18 @@ window.compileARTarget = async function() {
   btn.textContent = 'Loading compiler...';
 
   try {
-    // 1. Load MindAR compiler
-    await loadScriptDynamic('https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js');
+    // 1. Load MindAR compiler (ES module — sets window.MINDAR)
+    await loadModuleScript('https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js');
+    // Module scripts execute deferred — wait for window.MINDAR to appear
+    await new Promise((resolve, reject) => {
+      let attempts = 0;
+      const check = () => {
+        if (window.MINDAR && window.MINDAR.IMAGE) { resolve(); return; }
+        if (++attempts > 50) { reject(new Error('MindAR compiler did not load')); return; }
+        setTimeout(check, 100);
+      };
+      check();
+    });
     btn.textContent = 'Fetching sticker...';
 
     // 2. Fetch the sticker SVG
