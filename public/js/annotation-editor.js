@@ -509,17 +509,17 @@ window.compileARTarget = async function() {
 
     btn.textContent = 'Rendering image...';
 
-    // 3. Render SVG to canvas → ImageData
-    const imageData = await svgToImageData(svgText);
+    // 3. Render SVG to an Image element for MindAR compiler
+    const image = await svgToImage(svgText);
 
     btn.textContent = 'Compiling target (this may take a minute)...';
 
-    // 4. Compile with MindAR
-    const compiler = new MINDAR.IMAGE.Compiler();
-    await compiler.compileImageTargets([imageData], (progress) => {
+    // 4. Compile with MindAR (expects Image elements, not ImageData)
+    const compiler = new window.MINDAR.IMAGE.Compiler();
+    await compiler.compileImageTargets([image], (progress) => {
       btn.textContent = `Compiling... ${Math.round(progress)}%`;
     });
-    const buffer = compiler.exportData();
+    const buffer = await compiler.exportData();
 
     btn.textContent = 'Uploading...';
 
@@ -558,13 +558,14 @@ window.compileARTarget = async function() {
   }
 };
 
-function svgToImageData(svgText) {
+function svgToImage(svgText) {
   return new Promise((resolve, reject) => {
+    // Rasterize SVG to a PNG data URL via canvas, then load as Image
+    // MindAR compiler needs a raster Image element, not an SVG
     const blob = new Blob([svgText], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-      // Render at a good size for MindAR feature extraction
+    const svgImg = new Image();
+    svgImg.onload = () => {
       const size = 512;
       const canvas = document.createElement('canvas');
       canvas.width = size;
@@ -572,15 +573,19 @@ function svgToImageData(svgText) {
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, size, size);
-      ctx.drawImage(img, 0, 0, size, size);
+      ctx.drawImage(svgImg, 0, 0, size, size);
       URL.revokeObjectURL(url);
-      resolve(ctx.getImageData(0, 0, size, size));
+
+      const rasterImg = new Image();
+      rasterImg.onload = () => resolve(rasterImg);
+      rasterImg.onerror = () => reject(new Error('Failed to create raster image'));
+      rasterImg.src = canvas.toDataURL('image/png');
     };
-    img.onerror = () => {
+    svgImg.onerror = () => {
       URL.revokeObjectURL(url);
       reject(new Error('Failed to render SVG to image'));
     };
-    img.src = url;
+    svgImg.src = url;
   });
 }
 
