@@ -201,6 +201,7 @@ header h1 {
   left: 0;
   width: 100%;
   height: 100%;
+  pointer-events: none;
 }
 
 /* AR-style annotation callout */
@@ -212,8 +213,8 @@ header h1 {
 
 .annotation-dot {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   cursor: grab;
@@ -223,6 +224,16 @@ header h1 {
   pointer-events: auto;
   left: 0;
   top: 0;
+}
+
+.annotation-dot::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  border-radius: 50%;
 }
 
 .annotation-stem-wrap {
@@ -649,21 +660,45 @@ th {
   background: #fff;
 }
 
-.range-with-value {
+.rotation-controls {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.range-with-value input[type="range"] {
-  flex: 1;
-  min-width: 80px;
+.rotation-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
-.range-with-value span {
-  font-size: 0.85em;
+.rotation-preset {
+  padding: 3px 8px;
+  font-size: 0.75em;
   font-weight: 600;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
   color: #374151;
-  min-width: 32px;
-  text-align: right;
+}
+
+.rotation-preset:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.rotation-preset.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.rotation-number {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.85em;
 }
