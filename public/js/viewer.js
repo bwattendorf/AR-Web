@@ -49,8 +49,9 @@ window.closeWiringOverlay = function() {
   wiringOverlay.classList.remove('visible');
 };
 
-// Store annotations data for click handler
+// Store annotations data and their A-Frame entities for tap detection
 let annotationsData = [];
+let clickableEntities = []; // { entity, annId }
 
 async function init() {
   try {
@@ -111,11 +112,10 @@ async function init() {
       const stemH = parseFloat(z);
 
       const hasWiring = ann.wiring_points && ann.wiring_points.length > 0;
-      const clickClass = hasWiring ? 'clickable' : '';
 
       annotationHTML += `
-        <a-entity position="${x} ${y} ${z}" class="${clickClass}" data-ann-id="${ann.id}">
-          <a-plane width="${bgW}" height="0.22" color="${ann.color}" opacity="0.9" position="0 0 0.001" class="${clickClass}" data-ann-id="${ann.id}"></a-plane>
+        <a-entity position="${x} ${y} ${z}" data-ann-id="${ann.id}" ${hasWiring ? 'data-has-wiring="true"' : ''}>
+          <a-plane width="${bgW}" height="0.22" color="${ann.color}" opacity="0.9" position="0 0 0.001"></a-plane>
           <a-text value="${ann.label}" color="#fff" align="center" width="1.8" position="0 0 0.002"></a-text>
           <a-entity geometry="primitive: cylinder; radius: 0.01; height: ${stemH}" material="color: ${ann.color}; opacity: 0.8" rotation="90 0 0" position="0 0 ${(-stemH / 2).toFixed(3)}"></a-entity>
           <a-sphere radius="0.03" color="${ann.color}" position="0 0 ${(-stemH).toFixed(3)}"></a-sphere>
@@ -133,9 +133,7 @@ async function init() {
         device-orientation-permission-ui="enabled: false"
         renderer="precision: mediump; antialias: true;"
       >
-        <a-camera position="0 0 0" look-controls="enabled: false"
-          cursor="fuse: false; rayOrigin: mouse"
-          raycaster="objects: .clickable"></a-camera>
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
           <!-- Annotations -->
@@ -164,15 +162,23 @@ async function init() {
         log('A-Frame scene loaded');
         setTimeout(() => { loadingOverlay.classList.add('hidden'); }, 1500);
 
-        // Attach click handlers to clickable annotations
-        const clickables = scene.querySelectorAll('.clickable[data-ann-id]');
-        clickables.forEach(el => {
-          el.addEventListener('click', () => {
-            const annId = parseInt(el.getAttribute('data-ann-id'));
-            const ann = annotationsData.find(a => a.id === annId);
-            if (ann) showWiringOverlay(ann);
+        // Collect clickable annotation entities for screen-tap detection
+        const annEntities = scene.querySelectorAll('[data-has-wiring]');
+        annEntities.forEach(el => {
+          clickableEntities.push({
+            entity: el,
+            annId: parseInt(el.getAttribute('data-ann-id'))
           });
         });
+        log(`${clickableEntities.length} clickable annotations registered`);
+
+        // Screen-tap detection: project 3D positions to 2D and find tapped annotation
+        const canvas = scene.canvas;
+        if (canvas) {
+          canvas.addEventListener('click', onCanvasTap);
+          canvas.addEventListener('touchend', onCanvasTap);
+          log('Tap handlers attached to canvas');
+        }
       });
     }
 
@@ -182,6 +188,70 @@ async function init() {
   } catch (err) {
     loadingText.textContent = 'Error: ' + err.message;
     log('ERROR: ' + err.message);
+  }
+}
+
+// Screen-space tap detection
+function onCanvasTap(e) {
+  // Don't process if wiring overlay is open
+  if (wiringOverlay.classList.contains('visible')) return;
+
+  // Get tap position on screen
+  let clientX, clientY;
+  if (e.type === 'touchend' && e.changedTouches && e.changedTouches.length > 0) {
+    clientX = e.changedTouches[0].clientX;
+    clientY = e.changedTouches[0].clientY;
+  } else {
+    clientX = e.clientX;
+    clientY = e.clientY;
+  }
+
+  if (clientX == null || clientY == null) return;
+
+  const scene = sceneContainer.querySelector('a-scene');
+  if (!scene || !scene.camera) return;
+
+  const camera = scene.camera;
+  const canvas = scene.canvas;
+  const rect = canvas.getBoundingClientRect();
+
+  // Threshold in pixels for tap proximity
+  const TAP_THRESHOLD = 60;
+  let closest = null;
+  let closestDist = Infinity;
+
+  const THREE = AFRAME.THREE;
+  const worldPos = new THREE.Vector3();
+
+  clickableEntities.forEach(({ entity, annId }) => {
+    // Get world position of the annotation entity
+    entity.object3D.getWorldPosition(worldPos);
+
+    // Project to screen coordinates
+    const projected = worldPos.clone().project(camera);
+
+    // Convert from NDC (-1 to 1) to pixel coordinates
+    const screenX = (projected.x + 1) / 2 * rect.width + rect.left;
+    const screenY = (-projected.y + 1) / 2 * rect.height + rect.top;
+
+    // Check if annotation is in front of camera (z < 1)
+    if (projected.z > 1) return;
+
+    const dist = Math.hypot(clientX - screenX, clientY - screenY);
+    if (dist < TAP_THRESHOLD && dist < closestDist) {
+      closestDist = dist;
+      closest = annId;
+    }
+  });
+
+  if (closest != null) {
+    const ann = annotationsData.find(a => a.id === closest);
+    if (ann) {
+      log(`Tapped annotation: "${ann.label}"`);
+      showWiringOverlay(ann);
+      e.preventDefault();
+      e.stopPropagation();
+    }
   }
 }
 
