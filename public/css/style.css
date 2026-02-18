@@ -203,35 +203,59 @@ header h1 {
   height: 100%;
 }
 
+/* AR-style annotation callout */
+.annotation-callout {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+}
+
 .annotation-dot {
   position: absolute;
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   cursor: grab;
   border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-  z-index: 10;
+  z-index: 12;
+  pointer-events: auto;
+  left: 0;
+  top: 0;
 }
 
-.annotation-dot:hover .dot-label {
-  display: block;
+.annotation-stem-wrap {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  transform-origin: bottom center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.annotation-stem {
+  width: 2px;
+  flex-shrink: 0;
+  z-index: 11;
+}
+
+.annotation-tag {
+  padding: 3px 10px;
+  border-radius: 4px;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 13;
+  flex-shrink: 0;
 }
 
 .dot-label {
   display: none;
-  position: absolute;
-  bottom: 120%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #fff;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 0.75em;
-  white-space: nowrap;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-  border-left: 3px solid;
 }
 
 .editor-toolbar {
@@ -588,4 +612,58 @@ th {
   border-radius: 10px;
   margin-left: 6px;
   vertical-align: middle;
+}
+
+/* Annotation style controls */
+.annotation-style-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 10px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.form-group-inline {
+  flex: 1;
+  min-width: 120px;
+  margin-bottom: 0;
+}
+
+.form-group-inline label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-size: 0.8em;
+  color: #374151;
+}
+
+.form-group-inline select {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.85em;
+  background: #fff;
+}
+
+.range-with-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.range-with-value input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+}
+
+.range-with-value span {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: #374151;
+  min-width: 32px;
+  text-align: right;
 }
